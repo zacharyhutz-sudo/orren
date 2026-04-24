@@ -13,9 +13,12 @@
   },
   "dependencies": {
     "@lucide/astro": "^1.11.0",
-    "astro": "^6.1.9"
+    "@supabase/supabase-js": "^2.104.1",
+    "astro": "^6.1.9",
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
+    "@astrojs/netlify": "^7.0.8",
     "@tailwindcss/vite": "^4.2.4",
     "tailwindcss": "^4.2.4"
   }
