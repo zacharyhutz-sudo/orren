@@ -1,61 +1,198 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+const accessToken = Astro.cookies.get("sb-access-token")?.value;
+const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+
+const { data: authData, error: authError } = await supabase.auth.setSession({
+  access_token: accessToken,
+  refresh_token: refreshToken,
+});
+
+if (authError || !authData.user) {
+  return Astro.redirect("/signin");
+}
+
+// Fetch accounts and their latest snapshots
+const { data: accounts, error: accountsError } = await supabase
+  .from('accounts')
+  .select(`
+    *,
+    account_snapshots (
+      balance,
+      snapshot_date
+    )
+  `)
+  .eq('user_id', authData.user.id);
+
+if (accountsError) {
+  console.error(accountsError);
+}
+
+// Process data for the UI
+const processedAccounts = (accounts || []).map(acc => {
+  const latestSnapshot = acc.account_snapshots?.sort((a: any, b: any) => 
+    new Date(b.snapshot_date).getTime() - new Date(a.snapshot_date).getTime()
+  )[0];
+  return {
+    ...acc,
+    balance: latestSnapshot?.balance || 0
+  };
+});
+
+const assets = processedAccounts.filter(a => a.type === 'asset');
+const liabilities = processedAccounts.filter(a => a.type === 'liability');
+
+const totalAssets = assets.reduce((sum, a) => sum + Number(a.balance), 0);
+const totalLiabilities = liabilities.reduce((sum, a) => sum + Number(a.balance), 0);
+const netWorth = totalAssets - totalLiabilities;
+
+// Simple month-over-month calculation (this would be better with more historical data)
+const trend = "+0.0%"; // Placeholder for now
 ---
 
 <Layout title="Net Worth">
   <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
-    <header class="space-y-2">
-      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Net Worth</h2>
-      <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Financial Snapshot</p>
+    <header class="space-y-2 flex justify-between items-end">
+      <div>
+        <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Net Worth</h2>
+        <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Financial Snapshot</p>
+      </div>
+      <button onclick="document.getElementById('add-modal').showModal()" class="text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-4 py-2 hover:bg-[#1a1a1a] hover:text-white transition-colors">
+        + Add Account
+      </button>
     </header>
 
-    <!-- Total Net Worth -->
+    <!-- Total Net Worth Card -->
     <div class="bg-[#1a1a1a] text-white p-12 text-center space-y-4">
       <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Consolidated Wealth</span>
-      <h3 class="text-6xl font-bold tracking-tighter">$142,500.00</h3>
+      <h3 class="text-6xl font-bold tracking-tighter">${netWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
       <div class="flex justify-center items-center gap-2 text-[#7ea493]">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-        <span class="text-[10px] font-bold uppercase tracking-widest">+2.4% this month</span>
+        <span class="text-[10px] font-bold uppercase tracking-widest">{trend} this month</span>
+      </div>
+    </div>
+
+    <!-- Graph Placeholder -->
+    <div class="bg-white p-8 border border-[#1a1a1a]/5 space-y-6">
+      <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Performance</h4>
+      <div class="h-48 flex items-end justify-between gap-2 px-4">
+        {[40, 60, 45, 70, 85, 100].map((h) => (
+          <div class="flex-1 bg-[#B18B53]/10 hover:bg-[#B18B53]/30 transition-colors relative group" style={`height: ${h}%`}>
+             <div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-white text-[8px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Net Worth Info
+             </div>
+          </div>
+        ))}
+      </div>
+      <div class="flex justify-between px-2 text-[8px] font-bold uppercase tracking-widest opacity-30">
+        <span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span>
       </div>
     </div>
 
     <!-- Assets vs Liabilities -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
       <section class="space-y-6">
         <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Assets</h4>
         <div class="space-y-3">
-          {[
-            { name: 'Checking', value: 8500 },
-            { name: 'Savings', value: 24000 },
-            { name: 'Investments', value: 110000 }
-          ].map(item => (
-            <div class="bg-white p-6 flex justify-between items-center border-l-2 border-[#7ea493]">
-              <span class="font-['Cormorant_Garamond'] italic text-lg">{item.name}</span>
-              <span class="font-bold tracking-tighter text-lg">${item.value.toLocaleString()}</span>
+          {assets.map(item => (
+            <div class="group bg-white p-6 flex justify-between items-center border-l-2 border-[#7ea493] relative overflow-hidden">
+              <div class="space-y-1">
+                <span class="font-['Cormorant_Garamond'] italic text-lg block">{item.name}</span>
+                <span class="text-[8px] font-bold uppercase tracking-widest opacity-30">Last Updated: {item.account_snapshots[0]?.snapshot_date}</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="font-bold tracking-tighter text-lg">${Number(item.balance).toLocaleString()}</span>
+                <button 
+                  onclick={`if(confirm('Delete account?')) { fetch('/api/accounts?id=${item.id}', { method: 'DELETE' }).then(() => location.reload()) }`}
+                  class="opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity p-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </div>
             </div>
           ))}
+          {assets.length === 0 && <p class="text-[10px] italic opacity-40">No assets added yet.</p>}
         </div>
       </section>
 
       <section class="space-y-6">
         <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 text-right md:text-left">Liabilities</h4>
         <div class="space-y-3">
-          {[
-            { name: 'Credit Cards', value: 0 },
-            { name: 'Auto Loan', value: 0 }
-          ].map(item => (
-            <div class="bg-white p-6 flex justify-between items-center border-l-2 border-[#B18B53]/20">
-              <span class="font-['Cormorant_Garamond'] italic text-lg">{item.name}</span>
-              <span class="font-bold tracking-tighter text-lg">${item.value.toLocaleString()}</span>
+          {liabilities.map(item => (
+            <div class="group bg-white p-6 flex justify-between items-center border-l-2 border-[#B18B53]/20 relative overflow-hidden">
+              <div class="space-y-1">
+                <span class="font-['Cormorant_Garamond'] italic text-lg block">{item.name}</span>
+                <span class="text-[8px] font-bold uppercase tracking-widest opacity-30">Last Updated: {item.account_snapshots[0]?.snapshot_date}</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="font-bold tracking-tighter text-lg">${Number(item.balance).toLocaleString()}</span>
+                <button 
+                   onclick={`if(confirm('Delete account?')) { fetch('/api/accounts?id=${item.id}', { method: 'DELETE' }).then(() => location.reload()) }`}
+                   class="opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity p-1"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </div>
             </div>
           ))}
+          {liabilities.length === 0 && <p class="text-[10px] italic opacity-40">No liabilities added yet.</p>}
         </div>
       </section>
     </div>
-
-    <!-- Manual Entry Button -->
-    <button class="w-full border-2 border-[#1a1a1a] py-6 text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1a1a1a] hover:text-white transition-all cursor-pointer">
-      Log Asset / Liability
-    </button>
   </div>
+
+  <!-- Add Account Modal -->
+  <dialog id="add-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+    <form action="/api/accounts" method="POST" class="space-y-8">
+      <header class="space-y-2 text-center">
+        <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Account</h3>
+        <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">Expand your portfolio</p>
+      </header>
+
+      <div class="space-y-4">
+        <div class="space-y-1">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Name</label>
+          <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none focus:ring-1 ring-[#B18B53]/50" placeholder="e.g. Chase Savings" />
+        </div>
+        
+        <div class="space-y-1">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Type</label>
+          <select name="type" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none">
+            <option value="asset">Asset</option>
+            <option value="liability">Liability</option>
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Current Balance</label>
+          <input type="number" step="0.01" name="balance" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none focus:ring-1 ring-[#B18B53]/50" placeholder="0.00" />
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">
+          Add Account
+        </button>
+        <button type="button" onclick="document.getElementById('add-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </dialog>
 </Layout>
+
+<style>
+  dialog::backdrop {
+    animation: fadeIn 0.3s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+</style>
