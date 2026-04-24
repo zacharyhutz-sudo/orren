@@ -1,5 +1,22 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+const accessToken = Astro.cookies.get("sb-access-token")?.value;
+const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+
+const { data: authData, error: authError } = await supabase.auth.setSession({
+  access_token: accessToken,
+  refresh_token: refreshToken,
+});
+
+if (authError || !authData.user) {
+  return Astro.redirect("/signin");
+}
 ---
 
 <Layout title="Budget">

@@ -47,6 +47,11 @@ const { title } = Astro.props;
           <li><a href="/" class="opacity-40 hover:opacity-100 transition-opacity">Home</a></li>
           <li><a href="/budget" class="opacity-40 hover:opacity-100 transition-opacity">Budget</a></li>
           <li><a href="/net-worth" class="opacity-40 hover:opacity-100 transition-opacity">Net Worth</a></li>
+          <li>
+            <form action="/api/auth/signout" method="POST" class="inline">
+              <button type="submit" class="opacity-40 hover:opacity-100 transition-opacity cursor-pointer">Sign Out</button>
+            </form>
+          </li>
         </ul>
       </nav>
     </header>
