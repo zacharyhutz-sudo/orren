@@ -64,7 +64,6 @@ const categoryData = assets.reduce((acc: any, item) => {
 }, {});
 
 // Prepare Trend Data (Historical)
-// We'll collect all unique dates and sum up the latest balance of every account for that date
 const allDates = [...new Set((accounts || []).flatMap(acc => acc.account_snapshots.map((s: any) => s.snapshot_date)))].sort();
 const trendData = allDates.map(date => {
     let total = 0;
@@ -73,7 +72,6 @@ const trendData = allDates.map(date => {
         if (snapForDate) {
             total += (acc.type === 'asset' ? 1 : -1) * snapForDate.balance;
         } else {
-            // Carry forward previous balance if not set for this date
             const prevSnap = acc.account_snapshots
                 .filter((s: any) => s.snapshot_date < date)
                 .sort((a: any, b: any) => new Date(b.snapshot_date).getTime() - new Date(a.snapshot_date).getTime())[0];
@@ -87,18 +85,24 @@ const trendData = allDates.map(date => {
 ---
 
 <Layout title="Net Worth">
+  <!-- Injection of server data into global window object for script safety -->
+  <script is:inline define:vars={{ trendData, categoryData }}>
+    window.ORREN_TREND_DATA = trendData;
+    window.ORREN_CATEGORY_DATA = categoryData;
+  </script>
+
   <div class="px-6 py-12 max-w-2xl mx-auto space-y-12 pb-32">
-    <!-- Redesigned Header -->
+    <!-- Header -->
     <header class="space-y-6 md:flex md:justify-between md:items-end md:space-y-0">
       <div>
         <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Net Worth</h2>
         <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Financial Snapshot</p>
       </div>
       <div class="flex flex-col gap-3 md:flex-row md:gap-2 w-full md:w-auto">
-        <button onclick="document.getElementById('import-modal').showModal()" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 hover:bg-[#B18B53] hover:text-white transition-colors">
+        <button id="btn-open-import" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 hover:bg-[#B18B53] hover:text-white transition-colors">
             Import CSV
         </button>
-        <button onclick="document.getElementById('add-modal').showModal()" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">
+        <button id="btn-open-add" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">
             + Add Item
         </button>
       </div>
@@ -115,9 +119,9 @@ const trendData = allDates.map(date => {
       <div class="flex justify-between items-center">
         <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Performance</h4>
         <div class="flex bg-[#f2efeb] p-1 rounded">
-          <button onclick="updateTrend('week')" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Week</button>
-          <button onclick="updateTrend('month')" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest bg-white shadow-sm opacity-100">Month</button>
-          <button onclick="updateTrend('year')" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Year</button>
+          <button data-interval="week" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Week</button>
+          <button data-interval="month" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest bg-white shadow-sm opacity-100">Month</button>
+          <button data-interval="year" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Year</button>
         </div>
       </div>
       <div class="h-64 w-full">
@@ -177,14 +181,14 @@ const trendData = allDates.map(date => {
                   </div>
                   <span class="text-[8px] font-bold uppercase tracking-widest opacity-30 block">{item.category} • Updated: {item.lastUpdate}</span>
                 </div>
-                <button onclick={`openEditModal(${JSON.stringify(item)})`} class="opacity-40 hover:opacity-100 transition-opacity p-1">
+                <button class="btn-edit-item opacity-40 hover:opacity-100 transition-opacity p-1" data-item={JSON.stringify(item)}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
               </div>
               
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-bold opacity-30">$</span>
-                <input type="number" value={item.balance} onchange={`saveSnapshot('${item.id}', this.value)`} class="w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent" />
+                <input type="number" value={item.balance} data-id={item.id} class="input-balance w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent" />
               </div>
             </div>
           ))}
@@ -201,14 +205,14 @@ const trendData = allDates.map(date => {
                   <span class="font-['Cormorant_Garamond'] italic text-lg block leading-none">{item.name}</span>
                   <span class="text-[8px] font-bold uppercase tracking-widest opacity-30 block">{item.category} • Updated: {item.lastUpdate}</span>
                 </div>
-                <button onclick={`openEditModal(${JSON.stringify(item)})`} class="opacity-40 hover:opacity-100 transition-opacity p-1">
+                <button class="btn-edit-item opacity-40 hover:opacity-100 transition-opacity p-1" data-item={JSON.stringify(item)}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
               </div>
 
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-bold opacity-30">$</span>
-                <input type="number" value={item.balance} onchange={`saveSnapshot('${item.id}', this.value)`} class="w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent" />
+                <input type="number" value={item.balance} data-id={item.id} class="input-balance w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent" />
               </div>
             </div>
           ))}
@@ -234,7 +238,7 @@ const trendData = allDates.map(date => {
         </div>
         <div class="flex flex-col gap-4">
           <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Add Item</button>
-          <button type="button" onclick="document.getElementById('add-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Cancel</button>
+          <button type="button" class="btn-close-modal text-[10px] font-bold uppercase tracking-widest opacity-40">Cancel</button>
         </div>
       </form>
     </dialog>
@@ -258,203 +262,229 @@ const trendData = allDates.map(date => {
             <div class="flex gap-2">
               <input type="date" id="past-date" class="bg-white p-2 text-[10px] focus:outline-none flex-1" />
               <input type="number" id="past-balance" placeholder="0.00" class="bg-white p-2 text-[10px] focus:outline-none w-20" />
-              <button onclick="savePastSnapshot()" class="bg-[#1a1a1a] text-white px-3 text-[10px] hover:bg-[#B18B53]">Add</button>
+              <button id="btn-add-past" class="bg-[#1a1a1a] text-white px-3 text-[10px] hover:bg-[#B18B53]">Add</button>
             </div>
           </div>
         </div>
-        <button onclick="deleteAccount()" class="w-full text-red-500 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete Entire Item</button>
-        <button type="button" onclick="document.getElementById('edit-modal').close()" class="w-full text-[10px] font-bold uppercase tracking-widest opacity-40">Close</button>
+        <button id="btn-delete-item" class="w-full text-red-500 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete Entire Item</button>
+        <button type="button" class="btn-close-modal w-full text-[10px] font-bold uppercase tracking-widest opacity-40">Close</button>
       </div>
     </dialog>
 
     <dialog id="import-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
         <form id="import-form" class="space-y-6">
-          <input type="file" name="file" accept=".csv" required />
-          <button type="submit" id="import-btn">Process CSV</button>
+          <header class="text-center">
+              <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Import History</h3>
+          </header>
+          <input type="file" name="file" accept=".csv" required class="w-full text-xs" />
+          <div class="flex flex-col gap-4">
+              <button type="submit" id="import-btn" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest">Process CSV</button>
+              <button type="button" class="btn-close-modal text-[10px] font-bold uppercase tracking-widest opacity-40">Cancel</button>
+          </div>
         </form>
     </dialog>
 
 </Layout>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- External library -->
+<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script define:vars={{ trendData, categoryData }}>
-  // 1. Trend Chart Initialization
-  const trendCtx = document.getElementById('trendChart')?.getContext('2d');
-  let trendChart;
+<script is:inline>
+  // Robust initialization on DOM load
+  document.addEventListener('DOMContentLoaded', () => {
+    const trendData = window.ORREN_TREND_DATA || [];
+    const categoryData = window.ORREN_CATEGORY_DATA || {};
+    let trendChart;
+    let currentItem = null;
 
-  const filterTrendData = (interval) => {
-    const data = trendData || [];
-    if (interval === 'week') {
-        return data.filter((_, i) => i % 7 === 0 || i === data.length - 1);
-    }
-    if (interval === 'month') {
-        const months = {};
-        data.forEach(d => {
-            const m = d.date.substring(0, 7);
-            months[m] = d.value;
-        });
-        return Object.entries(months).map(([date, value]) => ({ date, value }));
-    }
-    const years = {};
-    data.forEach(d => {
-        const y = d.date.substring(0, 4);
-        years[y] = d.value;
-    });
-    return Object.entries(years).map(([date, value]) => ({ date, value }));
-  };
+    const categories = {
+        asset: ['Cash', 'Investments', 'Property', 'Business Equity'],
+        liability: ['Credit Cards', 'Auto Loan', 'Mortgage', 'Student Loan', 'Other']
+    };
 
-  if (trendCtx) {
-    trendChart = new Chart(trendCtx, {
-        type: 'line',
-        data: {
-        labels: filterTrendData('month').map(d => d.date),
-        datasets: [{
-            label: 'Net Worth',
-            data: filterTrendData('month').map(d => d.value),
-            borderColor: '#1a1a1a',
-            backgroundColor: 'rgba(26,26,26,0.05)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 4,
-            pointBackgroundColor: '#1a1a1a'
-        }]
-        },
-        options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-            y: { display: false },
-            x: { 
-                grid: { display: false },
-                ticks: { font: { size: 9, family: 'Plus Jakarta Sans' }, color: '#1a1a1a' }
+    // --- CHART LOGIC ---
+    const filterTrendData = (interval) => {
+        if (interval === 'week') return trendData.filter((_, i) => i % 7 === 0 || i === trendData.length - 1);
+        if (interval === 'month') {
+            const months = {};
+            trendData.forEach(d => { months[d.date.substring(0, 7)] = d.value; });
+            return Object.entries(months).map(([date, value]) => ({ date, value }));
+        }
+        const years = {};
+        trendData.forEach(d => { years[d.date.substring(0, 4)] = d.value; });
+        return Object.entries(years).map(([date, value]) => ({ date, value }));
+    };
+
+    const trendCtx = document.getElementById('trendChart')?.getContext('2d');
+    if (trendCtx) {
+        trendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: filterTrendData('month').map(d => d.date),
+                datasets: [{
+                    data: filterTrendData('month').map(d => d.value),
+                    borderColor: '#1a1a1a',
+                    backgroundColor: 'rgba(26,26,26,0.05)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#1a1a1a'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { display: false },
+                    x: { ticks: { font: { size: 9 }, color: '#1a1a1a' }, grid: { display: false } }
+                }
             }
-        }
-        }
-    });
-  }
+        });
+    }
 
-  window.updateTrend = (interval) => {
-      if (!trendChart) return;
-      const data = filterTrendData(interval);
-      trendChart.data.labels = data.map(d => d.date);
-      trendChart.data.datasets[0].data = data.map(d => d.value);
-      trendChart.update();
-      
-      document.querySelectorAll('.interval-btn').forEach(btn => {
-          btn.classList.remove('bg-white', 'shadow-sm', 'opacity-100');
-          btn.classList.add('opacity-40');
-      });
-      const activeBtn = Array.from(document.querySelectorAll('.interval-btn')).find(b => b.textContent.toLowerCase() === interval);
-      if (activeBtn) {
-        activeBtn.classList.add('bg-white', 'shadow-sm', 'opacity-100');
-        activeBtn.classList.remove('opacity-40');
-      }
-  };
+    const allocCtx = document.getElementById('allocationChart')?.getContext('2d');
+    if (allocCtx) {
+        new Chart(allocCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(categoryData),
+                datasets: [{
+                    data: Object.values(categoryData).map(d => d.value),
+                    backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493', '#f2efeb', '#888'],
+                    borderWidth: 0
+                }]
+            },
+            options: { cutout: '80%', plugins: { legend: { display: false } } }
+        });
+    }
 
-  // 2. Allocation Chart Initialization
-  const allocCtx = document.getElementById('allocationChart')?.getContext('2d');
-  if (allocCtx) {
-    new Chart(allocCtx, {
-        type: 'doughnut',
-        data: {
-        labels: Object.keys(categoryData),
-        datasets: [{
-            data: Object.values(categoryData).map(d => d.value),
-            backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493', '#f2efeb', '#888'],
-            borderWidth: 0,
-            hoverOffset: 10
-        }]
-        },
-        options: {
-        cutout: '80%',
-        plugins: { legend: { display: false } }
-        }
-    });
-  }
+    // --- EVENT HANDLERS ---
 
-  // Global variables and state
-  let currentItem = null;
-  const categories = {
-    asset: ['Cash', 'Investments', 'Property', 'Business Equity'],
-    liability: ['Credit Cards', 'Auto Loan', 'Mortgage', 'Student Loan', 'Other']
-  };
-
-  window.openEditModal = (item) => {
-    currentItem = item;
-    const modal = document.getElementById('edit-modal');
-    document.getElementById('edit-id').value = item.id;
-    document.getElementById('edit-name').value = item.name;
-    
-    const editCategorySelect = document.getElementById('edit-category');
-    editCategorySelect.innerHTML = '';
-    categories[item.type].forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat; opt.textContent = cat;
-      if (cat === item.category) opt.selected = true;
-      editCategorySelect.appendChild(opt);
+    // Toggle intervals
+    document.querySelectorAll('.interval-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const interval = btn.dataset.interval;
+            const data = filterTrendData(interval);
+            trendChart.data.labels = data.map(d => d.date);
+            trendChart.data.datasets[0].data = data.map(d => d.value);
+            trendChart.update();
+            
+            document.querySelectorAll('.interval-btn').forEach(b => {
+                b.classList.remove('bg-white', 'shadow-sm', 'opacity-100');
+                b.classList.add('opacity-40');
+            });
+            btn.classList.add('bg-white', 'shadow-sm', 'opacity-100');
+            btn.classList.remove('opacity-40');
+        });
     });
 
-    const list = document.getElementById('snapshot-list');
-    list.innerHTML = '';
-    (item.allSnapshots || []).forEach(snap => {
-      const div = document.createElement('div');
-      div.className = 'flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-[10px]';
-      div.innerHTML = `<span>${snap.snapshot_date}</span><input type="number" value="${snap.balance}" onchange="saveSnapshot('${item.id}', this.value, '${snap.snapshot_date}')" class="w-16 font-bold focus:outline-none bg-transparent text-right" />`;
-      list.appendChild(div);
+    // Opening Modals
+    document.getElementById('btn-open-import')?.addEventListener('click', () => document.getElementById('import-modal').showModal());
+    document.getElementById('btn-open-add')?.addEventListener('click', () => document.getElementById('add-modal').showModal());
+
+    // Closing Modals
+    document.querySelectorAll('.btn-close-modal').forEach(btn => {
+        btn.addEventListener('click', () => btn.closest('dialog').close());
     });
-    modal?.showModal();
-  };
 
-  window.saveSnapshot = async (id, val, date = null) => {
-    const body = new URLSearchParams({ accountId: id, balance: val });
-    if (date) body.append('date', date);
-    await fetch('/api/snapshots', { method: 'POST', body });
-  };
+    // Edit Item Modal
+    document.querySelectorAll('.btn-edit-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const item = JSON.parse(btn.dataset.item);
+            currentItem = item;
+            
+            document.getElementById('edit-id').value = item.id;
+            document.getElementById('edit-name').value = item.name;
+            
+            const editCat = document.getElementById('edit-category');
+            editCat.innerHTML = '';
+            categories[item.type].forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat; opt.textContent = cat;
+                if (cat === item.category) opt.selected = true;
+                editCat.appendChild(opt);
+            });
 
-  window.savePastSnapshot = async () => {
-    const date = document.getElementById('past-date').value;
-    const balance = document.getElementById('past-balance').value;
-    if (!date || !balance) return alert('Date and balance required');
-    await window.saveSnapshot(currentItem.id, balance, date);
-    location.reload();
-  };
+            const list = document.getElementById('snapshot-list');
+            list.innerHTML = '';
+            item.allSnapshots.forEach(snap => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-[10px]';
+                div.innerHTML = `<span>${snap.snapshot_date}</span><input type="number" value="${snap.balance}" class="snap-input w-16 font-bold text-right" data-date="${snap.snapshot_date}">`;
+                list.appendChild(div);
+            });
 
-  window.deleteAccount = async () => {
-    if (!confirm('Delete entire item?')) return;
-    const res = await fetch(`/api/accounts?id=${currentItem.id}`, { method: 'DELETE' });
-    if (res.ok) location.reload();
-  };
+            // Re-attach listeners to the new snapshot inputs
+            list.querySelectorAll('.snap-input').forEach(input => {
+                input.addEventListener('change', () => saveSnapshot(item.id, input.value, input.dataset.date));
+            });
 
-  // Helper for dynamic category updates
-  const typeSelect = document.getElementById('type-select');
-  const categorySelect = document.getElementById('category-select');
-
-  function updateCategories() {
-    const type = typeSelect?.value;
-    if (!categorySelect || !type) return;
-    categorySelect.innerHTML = '';
-    categories[type].forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat; opt.textContent = cat;
-      categorySelect.appendChild(opt);
+            document.getElementById('edit-modal').showModal();
+        });
     });
-  }
-  typeSelect?.addEventListener('change', updateCategories);
-  updateCategories();
 
-  document.getElementById('edit-item-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const res = await fetch('/api/accounts/update', { method: 'POST', body: formData });
-    if (res.ok) location.reload();
+    // Inline Balance Updates
+    document.querySelectorAll('.input-balance').forEach(input => {
+        input.addEventListener('change', () => saveSnapshot(input.dataset.id, input.value));
+    });
+
+    // Helper functions
+    async function saveSnapshot(id, val, date = null) {
+        const body = new URLSearchParams({ accountId: id, balance: val });
+        if (date) body.append('date', date);
+        await fetch('/api/snapshots', { method: 'POST', body });
+    }
+
+    document.getElementById('btn-add-past')?.addEventListener('click', async () => {
+        const date = document.getElementById('past-date').value;
+        const bal = document.getElementById('past-balance').value;
+        if (!date || !bal) return alert('Data missing');
+        await saveSnapshot(currentItem.id, bal, date);
+        location.reload();
+    });
+
+    document.getElementById('btn-delete-item')?.addEventListener('click', async () => {
+        if (!confirm('Delete item?')) return;
+        const res = await fetch(`/api/accounts?id=${currentItem.id}`, { method: 'DELETE' });
+        if (res.ok) location.reload();
+    });
+
+    // Dynamic categories for Add Modal
+    const typeSelect = document.getElementById('type-select');
+    const catSelect = document.getElementById('category-select');
+    const updateCats = () => {
+        catSelect.innerHTML = '';
+        categories[typeSelect.value].forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat; opt.textContent = cat;
+            catSelect.appendChild(opt);
+        });
+    };
+    typeSelect?.addEventListener('change', updateCats);
+    updateCats();
+
+    // Import form
+    document.getElementById('import-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('import-btn');
+        btn.disabled = true; btn.textContent = 'Processing...';
+        const res = await fetch('/api/import', { method: 'POST', body: new FormData(e.target) });
+        if (res.ok) location.reload();
+        else alert('Import failed');
+    });
+
+    // Edit form
+    document.getElementById('edit-item-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await fetch('/api/accounts/update', { method: 'POST', body: new FormData(e.target) });
+        if (res.ok) location.reload();
+    });
   });
 </script>
 
 <style>
   dialog::backdrop { background: rgba(26, 26, 26, 0.2); backdrop-filter: blur(4px); }
   input[type="number"]::-webkit-inner-spin-button { display: none; }
+  .snap-input { border: none; background: transparent; outline: none; }
 </style>
