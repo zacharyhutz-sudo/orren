@@ -9,7 +9,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return redirect("/signin");
   }
 
-  // Auth check and get user
+  // Auth check and get user - Updated: 2026-04-24 14:08
   const { data: { user }, error: authError } = await supabase.auth.setSession({
     access_token: accessToken,
     refresh_token: refreshToken,
