@@ -1,0 +1,42 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/orren/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title} | Orren</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+	</head>
+	<body class="noise min-h-screen flex flex-col">
+		<header class="p-8 flex justify-between items-center border-b border-ink/5">
+			<h1 class="text-3xl font-['Cormorant_Garamond']">ORREN</h1>
+			<nav>
+				<ul class="flex gap-8 text-[10px] font-bold uppercase tracking-[0.2em] opacity-60">
+					<li><a href="/orren" class="hover:opacity-100 transition-opacity">Home</a></li>
+					<li><a href="/orren/work" class="hover:opacity-100 transition-opacity">Work</a></li>
+					<li><a href="/orren/contact" class="hover:opacity-100 transition-opacity">Contact</a></li>
+				</ul>
+			</nav>
+		</header>
+		<main class="flex-1">
+			<slot />
+		</main>
+		<footer class="p-8 border-t border-ink/5 flex justify-between items-center">
+			<p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">© 2026 Orren</p>
+			<p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Design by Hutzell Creative Co</p>
+		</footer>
+	</body>
+</html>
