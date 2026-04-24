@@ -279,122 +279,117 @@ const trendData = allDates.map(date => {
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script is:inline define:vars={{ trendData, categoryData }}>
+<script define:vars={{ trendData, categoryData }}>
   // 1. Trend Chart Initialization
-  const trendCtx = document.getElementById('trendChart').getContext('2d');
-  let currentInterval = 'month';
+  const trendCtx = document.getElementById('trendChart')?.getContext('2d');
+  let trendChart;
 
   const filterTrendData = (interval) => {
+    const data = trendData || [];
     if (interval === 'week') {
-        return trendData.filter((_, i) => i % 7 === 0 || i === trendData.length - 1);
+        return data.filter((_, i) => i % 7 === 0 || i === data.length - 1);
     }
     if (interval === 'month') {
         const months = {};
-        trendData.forEach(d => {
+        data.forEach(d => {
             const m = d.date.substring(0, 7);
             months[m] = d.value;
         });
         return Object.entries(months).map(([date, value]) => ({ date, value }));
     }
     const years = {};
-    trendData.forEach(d => {
+    data.forEach(d => {
         const y = d.date.substring(0, 4);
         years[y] = d.value;
     });
     return Object.entries(years).map(([date, value]) => ({ date, value }));
   };
 
-  let trendChart = new Chart(trendCtx, {
-    type: 'line',
-    data: {
-      labels: filterTrendData('month').map(d => d.date),
-      datasets: [{
-        label: 'Net Worth',
-        data: filterTrendData('month').map(d => d.value),
-        borderColor: '#1a1a1a',
-        backgroundColor: 'rgba(26,26,26,0.05)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: '#1a1a1a'
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { display: false },
-        x: { 
-            grid: { display: false },
-            ticks: { font: { size: 9, family: 'Plus Jakarta Sans' }, color: '#1a1a1a', opacity: 0.4 }
+  if (trendCtx) {
+    trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+        labels: filterTrendData('month').map(d => d.date),
+        datasets: [{
+            label: 'Net Worth',
+            data: filterTrendData('month').map(d => d.value),
+            borderColor: '#1a1a1a',
+            backgroundColor: 'rgba(26,26,26,0.05)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#1a1a1a'
+        }]
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { display: false },
+            x: { 
+                grid: { display: false },
+                ticks: { font: { size: 9, family: 'Plus Jakarta Sans' }, color: '#1a1a1a' }
+            }
         }
-      }
-    }
-  });
+        }
+    });
+  }
 
   window.updateTrend = (interval) => {
+      if (!trendChart) return;
       const data = filterTrendData(interval);
       trendChart.data.labels = data.map(d => d.date);
       trendChart.data.datasets[0].data = data.map(d => d.value);
       trendChart.update();
       
-      // Update UI active state
       document.querySelectorAll('.interval-btn').forEach(btn => {
           btn.classList.remove('bg-white', 'shadow-sm', 'opacity-100');
           btn.classList.add('opacity-40');
       });
       const activeBtn = Array.from(document.querySelectorAll('.interval-btn')).find(b => b.textContent.toLowerCase() === interval);
-      activeBtn.classList.add('bg-white', 'shadow-sm', 'opacity-100');
-      activeBtn.classList.remove('opacity-40');
+      if (activeBtn) {
+        activeBtn.classList.add('bg-white', 'shadow-sm', 'opacity-100');
+        activeBtn.classList.remove('opacity-40');
+      }
   };
 
   // 2. Allocation Chart Initialization
-  const allocCtx = document.getElementById('allocationChart').getContext('2d');
-  new Chart(allocCtx, {
-    type: 'doughnut',
-    data: {
-      labels: Object.keys(categoryData),
-      datasets: [{
-        data: Object.values(categoryData).map(d => d.value),
-        backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493', '#f2efeb', '#B18B53/50'],
-        borderWidth: 0,
-        hoverOffset: 10
-      }]
-    },
-    options: {
-      cutout: '80%',
-      plugins: { legend: { display: false } }
-    }
-  });
+  const allocCtx = document.getElementById('allocationChart')?.getContext('2d');
+  if (allocCtx) {
+    new Chart(allocCtx, {
+        type: 'doughnut',
+        data: {
+        labels: Object.keys(categoryData),
+        datasets: [{
+            data: Object.values(categoryData).map(d => d.value),
+            backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493', '#f2efeb', '#888'],
+            borderWidth: 0,
+            hoverOffset: 10
+        }]
+        },
+        options: {
+        cutout: '80%',
+        plugins: { legend: { display: false } }
+        }
+    });
+  }
 
-  // Existing Modal Logic
+  // Global variables and state
   let currentItem = null;
-  const typeSelect = document.getElementById('type-select');
-  const categorySelect = document.getElementById('category-select');
-  const editCategorySelect = document.getElementById('edit-category');
   const categories = {
     asset: ['Cash', 'Investments', 'Property', 'Business Equity'],
     liability: ['Credit Cards', 'Auto Loan', 'Mortgage', 'Student Loan', 'Other']
   };
 
-  function updateCategories() {
-    const type = typeSelect.value;
-    categorySelect.innerHTML = '';
-    categories[type].forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat; opt.textContent = cat;
-      categorySelect.appendChild(opt);
-    });
-  }
-  typeSelect?.addEventListener('change', updateCategories);
-  updateCategories();
-
   window.openEditModal = (item) => {
     currentItem = item;
+    const modal = document.getElementById('edit-modal');
     document.getElementById('edit-id').value = item.id;
     document.getElementById('edit-name').value = item.name;
+    
+    const editCategorySelect = document.getElementById('edit-category');
     editCategorySelect.innerHTML = '';
     categories[item.type].forEach(cat => {
       const opt = document.createElement('option');
@@ -402,15 +397,16 @@ const trendData = allDates.map(date => {
       if (cat === item.category) opt.selected = true;
       editCategorySelect.appendChild(opt);
     });
+
     const list = document.getElementById('snapshot-list');
     list.innerHTML = '';
-    item.allSnapshots.forEach(snap => {
+    (item.allSnapshots || []).forEach(snap => {
       const div = document.createElement('div');
       div.className = 'flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-[10px]';
       div.innerHTML = `<span>${snap.snapshot_date}</span><input type="number" value="${snap.balance}" onchange="saveSnapshot('${item.id}', this.value, '${snap.snapshot_date}')" class="w-16 font-bold focus:outline-none bg-transparent text-right" />`;
       list.appendChild(div);
     });
-    document.getElementById('edit-modal').showModal();
+    modal?.showModal();
   };
 
   window.saveSnapshot = async (id, val, date = null) => {
@@ -423,7 +419,7 @@ const trendData = allDates.map(date => {
     const date = document.getElementById('past-date').value;
     const balance = document.getElementById('past-balance').value;
     if (!date || !balance) return alert('Date and balance required');
-    await saveSnapshot(currentItem.id, balance, date);
+    await window.saveSnapshot(currentItem.id, balance, date);
     location.reload();
   };
 
@@ -432,6 +428,23 @@ const trendData = allDates.map(date => {
     const res = await fetch(`/api/accounts?id=${currentItem.id}`, { method: 'DELETE' });
     if (res.ok) location.reload();
   };
+
+  // Helper for dynamic category updates
+  const typeSelect = document.getElementById('type-select');
+  const categorySelect = document.getElementById('category-select');
+
+  function updateCategories() {
+    const type = typeSelect?.value;
+    if (!categorySelect || !type) return;
+    categorySelect.innerHTML = '';
+    categories[type].forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = cat;
+      categorySelect.appendChild(opt);
+    });
+  }
+  typeSelect?.addEventListener('change', updateCategories);
+  updateCategories();
 
   document.getElementById('edit-item-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
