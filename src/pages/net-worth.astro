@@ -64,9 +64,14 @@ const trend = "+0.0%";
         <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Net Worth</h2>
         <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Financial Snapshot</p>
       </div>
-      <button onclick="document.getElementById('add-modal').showModal()" class="text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-4 py-2 hover:bg-[#1a1a1a] hover:text-white transition-colors">
-        + Add Item
-      </button>
+      <div class="flex gap-2">
+        <button onclick="document.getElementById('import-modal').showModal()" class="text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-4 py-2 hover:bg-[#B18B53] hover:text-white transition-colors">
+            Import CSV
+        </button>
+        <button onclick="document.getElementById('add-modal').showModal()" class="text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-4 py-2 hover:bg-[#1a1a1a] hover:text-white transition-colors">
+            + Add Item
+        </button>
+      </div>
     </header>
 
     <!-- Total Net Worth Card -->
@@ -173,50 +178,74 @@ const trend = "+0.0%";
   </div>
 
   <!-- Add Item Modal -->
-  <dialog id="add-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
-    <form action="/api/accounts" method="POST" class="space-y-8">
+    ...
+  </dialog>
+
+  <!-- Import Modal -->
+  <dialog id="import-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+    <div class="space-y-8">
       <header class="space-y-2 text-center">
-        <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Item</h3>
-        <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">Expand your portfolio</p>
+        <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Import History</h3>
+        <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">Upload a CSV to bulk-populate history</p>
       </header>
 
-      <div class="space-y-4">
-        <div class="space-y-1">
-          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Name</label>
-          <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none focus:ring-1 ring-[#B18B53]/50" placeholder="e.g. Chase Savings" />
-        </div>
-        
-        <div class="space-y-1">
-          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Type</label>
-          <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none">
-            <option value="asset">Asset</option>
-            <option value="liability">Liability</option>
-          </select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Category</label>
-          <select name="category" id="category-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none">
-            <!-- Dynamic via JS -->
-          </select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Current Value</label>
-          <input type="number" step="0.01" name="balance" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none focus:ring-1 ring-[#B18B53]/50" placeholder="0.00" />
-        </div>
+      <div class="p-6 bg-[#f2efeb] text-[10px] space-y-4 font-mono leading-relaxed opacity-60">
+        <p class="font-bold">Required Columns:</p>
+        <p>Date, Account, Balance</p>
+        <p class="font-bold mt-2">Optional:</p>
+        <p>Type, Category</p>
       </div>
 
-      <div class="flex flex-col gap-4">
-        <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">
-          Add Item
-        </button>
-        <button type="button" onclick="document.getElementById('add-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">
-          Cancel
-        </button>
-      </div>
-    </form>
+      <form id="import-form" class="space-y-6">
+        <div class="space-y-1">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Choose CSV File</label>
+          <input type="file" name="file" accept=".csv" required class="w-full text-xs file:bg-[#1a1a1a] file:text-white file:border-none file:px-4 file:py-2 file:mr-4 file:cursor-pointer" />
+        </div>
+
+        <div class="flex flex-col gap-4">
+          <button type="submit" id="import-btn" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">
+            Upload & Process
+          </button>
+          <button type="button" onclick="document.getElementById('import-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
   </dialog>
+
+  <script is:inline>
+    const importForm = document.getElementById('import-form');
+    const importBtn = document.getElementById('import-btn');
+
+    importForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      importBtn.disabled = true;
+      importBtn.textContent = 'Processing...';
+
+      const formData = new FormData(importForm);
+      try {
+        const res = await fetch('/api/import', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Successfully imported ${data.count} snapshots!`);
+          location.reload();
+        } else {
+          const err = await res.text();
+          alert(`Error: ${err}`);
+        }
+      } catch (e) {
+        alert('Failed to connect to server');
+      } finally {
+        importBtn.disabled = false;
+        importBtn.textContent = 'Upload & Process';
+      }
+    });
+  </script>
 </Layout>
 
 <script is:inline>
