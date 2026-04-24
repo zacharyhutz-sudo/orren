@@ -18,7 +18,7 @@ if (authError || !authData.user) {
   return Astro.redirect("/signin");
 }
 
-// Fetch accounts and their snapshots (limit snapshots for performance)
+// Fetch accounts and their snapshots
 const { data: accounts, error: accountsError } = await supabase
   .from('accounts')
   .select(`
@@ -47,36 +47,120 @@ const processedAccounts = (accounts || []).map(acc => {
   };
 });
 
-const assets = processedAccounts.filter(a => a.type === 'asset');
-const liabilities = processedAccounts.filter(a => a.type === 'liability');
+const assets = processedAccounts.filter(a => a.type === 'asset').sort((a, b) => b.balance - a.balance);
+const liabilities = processedAccounts.filter(a => a.type === 'liability').sort((a, b) => b.balance - a.balance);
 
 const totalAssets = assets.reduce((sum, a) => sum + Number(a.balance), 0);
 const totalLiabilities = liabilities.reduce((sum, a) => sum + Number(a.balance), 0);
 const netWorth = totalAssets - totalLiabilities;
+
+// Prepare data for the Allocation Chart (Category based)
+const categoryData = assets.reduce((acc: any, item) => {
+    const cat = item.category || 'Other';
+    if (!acc[cat]) acc[cat] = { value: 0, items: [] };
+    acc[cat].value += Number(item.balance);
+    acc[cat].items.push({ name: item.name, balance: item.balance });
+    return acc;
+}, {});
+
+// Prepare Trend Data (Historical)
+// We'll collect all unique dates and sum up the latest balance of every account for that date
+const allDates = [...new Set((accounts || []).flatMap(acc => acc.account_snapshots.map((s: any) => s.snapshot_date)))].sort();
+const trendData = allDates.map(date => {
+    let total = 0;
+    (accounts || []).forEach(acc => {
+        const snapForDate = acc.account_snapshots.find((s: any) => s.snapshot_date === date);
+        if (snapForDate) {
+            total += (acc.type === 'asset' ? 1 : -1) * snapForDate.balance;
+        } else {
+            // Carry forward previous balance if not set for this date
+            const prevSnap = acc.account_snapshots
+                .filter((s: any) => s.snapshot_date < date)
+                .sort((a: any, b: any) => new Date(b.snapshot_date).getTime() - new Date(a.snapshot_date).getTime())[0];
+            if (prevSnap) {
+                total += (acc.type === 'asset' ? 1 : -1) * prevSnap.balance;
+            }
+        }
+    });
+    return { date, value: total };
+});
 ---
 
 <Layout title="Net Worth">
   <div class="px-6 py-12 max-w-2xl mx-auto space-y-12 pb-32">
-    <header class="space-y-2 flex justify-between items-end">
+    <!-- Redesigned Header -->
+    <header class="space-y-6 md:flex md:justify-between md:items-end md:space-y-0">
       <div>
         <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Net Worth</h2>
         <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Financial Snapshot</p>
       </div>
-      <div class="flex gap-2">
-        <button onclick="document.getElementById('import-modal').showModal()" class="text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-4 py-2 hover:bg-[#B18B53] hover:text-white transition-colors">
+      <div class="flex flex-col gap-3 md:flex-row md:gap-2 w-full md:w-auto">
+        <button onclick="document.getElementById('import-modal').showModal()" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 hover:bg-[#B18B53] hover:text-white transition-colors">
             Import CSV
         </button>
-        <button onclick="document.getElementById('add-modal').showModal()" class="text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-4 py-2 hover:bg-[#1a1a1a] hover:text-white transition-colors">
+        <button onclick="document.getElementById('add-modal').showModal()" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">
             + Add Item
         </button>
       </div>
     </header>
 
-    <!-- Total Net Worth Card -->
+    <!-- Consolidated Wealth Card -->
     <div class="bg-[#1a1a1a] text-white p-12 text-center space-y-4">
       <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Consolidated Wealth</span>
       <h3 class="text-6xl font-bold tracking-tighter">${netWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
     </div>
+
+    <!-- Trend Chart -->
+    <section class="bg-white p-8 border border-[#1a1a1a]/5 space-y-8">
+      <div class="flex justify-between items-center">
+        <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Performance</h4>
+        <div class="flex bg-[#f2efeb] p-1 rounded">
+          <button onclick="updateTrend('week')" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Week</button>
+          <button onclick="updateTrend('month')" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest bg-white shadow-sm opacity-100">Month</button>
+          <button onclick="updateTrend('year')" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Year</button>
+        </div>
+      </div>
+      <div class="h-64 w-full">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Allocation Chart -->
+    <section class="bg-white p-12 border border-[#1a1a1a]/5 space-y-12">
+        <header class="text-center space-y-2">
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Asset Allocation</h4>
+            <p class="font-['Cormorant_Garamond'] italic text-2xl">Portfolio Composition</p>
+        </header>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div class="relative aspect-square max-w-[240px] mx-auto w-full">
+                <canvas id="allocationChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">Total</span>
+                    <span class="text-lg font-bold tracking-tighter">${(totalAssets/1000).toFixed(1)}k</span>
+                </div>
+            </div>
+            
+            <div class="space-y-6">
+                {Object.entries(categoryData).map(([cat, data]: any) => (
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-end border-b border-[#1a1a1a]/5 pb-1">
+                            <span class="text-[10px] font-bold uppercase tracking-widest">{cat}</span>
+                            <span class="text-[10px] font-bold opacity-40">{Math.round((data.value / totalAssets) * 100)}%</span>
+                        </div>
+                        <div class="space-y-1">
+                            {data.items.map((item: any) => (
+                                <div class="flex justify-between text-[9px] opacity-60">
+                                    <span>{item.name}</span>
+                                    <span>${item.balance.toLocaleString()}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </section>
 
     <!-- Assets vs Liabilities -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -87,27 +171,20 @@ const netWorth = totalAssets - totalLiabilities;
             <div class="group bg-white p-6 border-l-2 border-[#7ea493] relative">
               <div class="flex justify-between items-start mb-4">
                 <div class="space-y-1">
-                  <span class="font-['Cormorant_Garamond'] italic text-lg block leading-none">{item.name}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="font-['Cormorant_Garamond'] italic text-lg block leading-none">{item.name}</span>
+                    <span class="text-[8px] font-bold text-[#7ea493] bg-[#7ea493]/10 px-1.5 py-0.5 rounded tracking-widest">{Math.round((item.balance / totalAssets) * 100)}%</span>
+                  </div>
                   <span class="text-[8px] font-bold uppercase tracking-widest opacity-30 block">{item.category} • Updated: {item.lastUpdate}</span>
                 </div>
-                <div class="flex gap-2">
-                    <button 
-                        onclick={`openEditModal(${JSON.stringify(item)})`}
-                        class="opacity-40 hover:opacity-100 transition-opacity p-1"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </button>
-                </div>
+                <button onclick={`openEditModal(${JSON.stringify(item)})`} class="opacity-40 hover:opacity-100 transition-opacity p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
               </div>
               
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-bold opacity-30">$</span>
-                <input 
-                  type="number" 
-                  value={item.balance} 
-                  onchange={`saveSnapshot('${item.id}', this.value)`}
-                  class="w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent"
-                />
+                <input type="number" value={item.balance} onchange={`saveSnapshot('${item.id}', this.value)`} class="w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent" />
               </div>
             </div>
           ))}
@@ -124,24 +201,14 @@ const netWorth = totalAssets - totalLiabilities;
                   <span class="font-['Cormorant_Garamond'] italic text-lg block leading-none">{item.name}</span>
                   <span class="text-[8px] font-bold uppercase tracking-widest opacity-30 block">{item.category} • Updated: {item.lastUpdate}</span>
                 </div>
-                <div class="flex gap-2">
-                    <button 
-                        onclick={`openEditModal(${JSON.stringify(item)})`}
-                        class="opacity-40 hover:opacity-100 transition-opacity p-1"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </button>
-                </div>
+                <button onclick={`openEditModal(${JSON.stringify(item)})`} class="opacity-40 hover:opacity-100 transition-opacity p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
               </div>
 
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-bold opacity-30">$</span>
-                <input 
-                  type="number" 
-                  value={item.balance} 
-                  onchange={`saveSnapshot('${item.id}', this.value)`}
-                  class="w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent"
-                />
+                <input type="number" value={item.balance} onchange={`saveSnapshot('${item.id}', this.value)`} class="w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent" />
               </div>
             </div>
           ))}
@@ -150,87 +217,163 @@ const netWorth = totalAssets - totalLiabilities;
     </div>
   </div>
 
-  <!-- Add Item Modal -->
+  <!-- Modals -->
   <dialog id="add-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
-    <form action="/api/accounts" method="POST" class="space-y-8">
-      <header class="space-y-2 text-center">
-        <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Item</h3>
-      </header>
-      <div class="space-y-4">
-        <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Name" />
-        <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none">
-          <option value="asset">Asset</option>
-          <option value="liability">Liability</option>
-        </select>
-        <select name="category" id="category-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"></select>
-        <input type="number" step="0.01" name="balance" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Initial Value" />
-      </div>
-      <div class="flex flex-col gap-4">
-        <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Add Item</button>
-        <button type="button" onclick="document.getElementById('add-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Cancel</button>
-      </div>
-    </form>
-  </dialog>
-
-  <!-- Edit Item Modal -->
-  <dialog id="edit-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
-    <div class="space-y-8">
-      <header class="space-y-2 text-center">
-        <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Edit Item</h3>
-      </header>
-      
-      <form id="edit-item-form" class="space-y-4">
-        <input type="hidden" name="id" id="edit-id" />
-        <div class="space-y-1">
-          <label class="text-[8px] font-bold uppercase tracking-widest opacity-40">Name</label>
-          <input type="text" name="name" id="edit-name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" />
-        </div>
-        <div class="space-y-1">
-          <label class="text-[8px] font-bold uppercase tracking-widest opacity-40">Category</label>
-          <select name="category" id="edit-category" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"></select>
-        </div>
-        <button type="submit" class="w-full bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save Details</button>
-      </form>
-
-      <div class="pt-8 border-t border-[#1a1a1a]/5 space-y-4">
-        <header class="text-center">
-          <h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Edit History</h4>
+      <form action="/api/accounts" method="POST" class="space-y-8">
+        <header class="space-y-2 text-center">
+          <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Item</h3>
         </header>
-        <div id="snapshot-list" class="max-h-40 overflow-y-auto space-y-2">
-            <!-- Snapshots populate here -->
+        <div class="space-y-4">
+          <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Name" />
+          <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none">
+            <option value="asset">Asset</option>
+            <option value="liability">Liability</option>
+          </select>
+          <select name="category" id="category-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"></select>
+          <input type="number" step="0.01" name="balance" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Initial Value" />
         </div>
-        <div class="p-4 bg-[#f2efeb] space-y-2">
-          <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">Add Past Balance</p>
-          <div class="flex gap-2">
-            <input type="date" id="past-date" class="bg-white p-2 text-[10px] focus:outline-none flex-1" />
-            <input type="number" id="past-balance" placeholder="0.00" class="bg-white p-2 text-[10px] focus:outline-none w-20" />
-            <button onclick="savePastSnapshot()" class="bg-[#1a1a1a] text-white px-3 text-[10px] hover:bg-[#B18B53]">Add</button>
+        <div class="flex flex-col gap-4">
+          <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Add Item</button>
+          <button type="button" onclick="document.getElementById('add-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="edit-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+      <div class="space-y-8">
+        <header class="space-y-2 text-center">
+          <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Edit Item</h3>
+        </header>
+        <form id="edit-item-form" class="space-y-4">
+          <input type="hidden" name="id" id="edit-id" />
+          <input type="text" name="name" id="edit-name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" />
+          <select name="category" id="edit-category" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"></select>
+          <button type="submit" class="w-full bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save Details</button>
+        </form>
+        <div class="pt-8 border-t border-[#1a1a1a]/5 space-y-4">
+          <header class="text-center"><h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Edit History</h4></header>
+          <div id="snapshot-list" class="max-h-40 overflow-y-auto space-y-2"></div>
+          <div class="p-4 bg-[#f2efeb] space-y-2">
+            <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">Add Past Balance</p>
+            <div class="flex gap-2">
+              <input type="date" id="past-date" class="bg-white p-2 text-[10px] focus:outline-none flex-1" />
+              <input type="number" id="past-balance" placeholder="0.00" class="bg-white p-2 text-[10px] focus:outline-none w-20" />
+              <button onclick="savePastSnapshot()" class="bg-[#1a1a1a] text-white px-3 text-[10px] hover:bg-[#B18B53]">Add</button>
+            </div>
           </div>
         </div>
+        <button onclick="deleteAccount()" class="w-full text-red-500 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete Entire Item</button>
+        <button type="button" onclick="document.getElementById('edit-modal').close()" class="w-full text-[10px] font-bold uppercase tracking-widest opacity-40">Close</button>
       </div>
+    </dialog>
 
-      <button onclick="deleteAccount()" class="w-full text-red-500 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete Entire Item</button>
-      <button type="button" onclick="document.getElementById('edit-modal').close()" class="w-full text-[10px] font-bold uppercase tracking-widest opacity-40">Close</button>
-    </div>
-  </dialog>
-
-  <!-- Import Modal (simplified for brevity here, assumed kept same) -->
-  <dialog id="import-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
-      <form id="import-form" class="space-y-6">
-        <input type="file" name="file" accept=".csv" required />
-        <button type="submit" id="import-btn">Process CSV</button>
-      </form>
-  </dialog>
+    <dialog id="import-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+        <form id="import-form" class="space-y-6">
+          <input type="file" name="file" accept=".csv" required />
+          <button type="submit" id="import-btn">Process CSV</button>
+        </form>
+    </dialog>
 
 </Layout>
 
-<script is:inline>
-  let currentItem = null;
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<script is:inline define:vars={{ trendData, categoryData }}>
+  // 1. Trend Chart Initialization
+  const trendCtx = document.getElementById('trendChart').getContext('2d');
+  let currentInterval = 'month';
+
+  const filterTrendData = (interval) => {
+    if (interval === 'week') {
+        return trendData.filter((_, i) => i % 7 === 0 || i === trendData.length - 1);
+    }
+    if (interval === 'month') {
+        const months = {};
+        trendData.forEach(d => {
+            const m = d.date.substring(0, 7);
+            months[m] = d.value;
+        });
+        return Object.entries(months).map(([date, value]) => ({ date, value }));
+    }
+    const years = {};
+    trendData.forEach(d => {
+        const y = d.date.substring(0, 4);
+        years[y] = d.value;
+    });
+    return Object.entries(years).map(([date, value]) => ({ date, value }));
+  };
+
+  let trendChart = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels: filterTrendData('month').map(d => d.date),
+      datasets: [{
+        label: 'Net Worth',
+        data: filterTrendData('month').map(d => d.value),
+        borderColor: '#1a1a1a',
+        backgroundColor: 'rgba(26,26,26,0.05)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: '#1a1a1a'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { display: false },
+        x: { 
+            grid: { display: false },
+            ticks: { font: { size: 9, family: 'Plus Jakarta Sans' }, color: '#1a1a1a', opacity: 0.4 }
+        }
+      }
+    }
+  });
+
+  window.updateTrend = (interval) => {
+      const data = filterTrendData(interval);
+      trendChart.data.labels = data.map(d => d.date);
+      trendChart.data.datasets[0].data = data.map(d => d.value);
+      trendChart.update();
+      
+      // Update UI active state
+      document.querySelectorAll('.interval-btn').forEach(btn => {
+          btn.classList.remove('bg-white', 'shadow-sm', 'opacity-100');
+          btn.classList.add('opacity-40');
+      });
+      const activeBtn = Array.from(document.querySelectorAll('.interval-btn')).find(b => b.textContent.toLowerCase() === interval);
+      activeBtn.classList.add('bg-white', 'shadow-sm', 'opacity-100');
+      activeBtn.classList.remove('opacity-40');
+  };
+
+  // 2. Allocation Chart Initialization
+  const allocCtx = document.getElementById('allocationChart').getContext('2d');
+  new Chart(allocCtx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(categoryData),
+      datasets: [{
+        data: Object.values(categoryData).map(d => d.value),
+        backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493', '#f2efeb', '#B18B53/50'],
+        borderWidth: 0,
+        hoverOffset: 10
+      }]
+    },
+    options: {
+      cutout: '80%',
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // Existing Modal Logic
+  let currentItem = null;
   const typeSelect = document.getElementById('type-select');
   const categorySelect = document.getElementById('category-select');
   const editCategorySelect = document.getElementById('edit-category');
-
   const categories = {
     asset: ['Cash', 'Investments', 'Property', 'Business Equity'],
     liability: ['Credit Cards', 'Auto Loan', 'Mortgage', 'Student Loan', 'Other']
@@ -245,7 +388,6 @@ const netWorth = totalAssets - totalLiabilities;
       categorySelect.appendChild(opt);
     });
   }
-
   typeSelect?.addEventListener('change', updateCategories);
   updateCategories();
 
@@ -253,8 +395,6 @@ const netWorth = totalAssets - totalLiabilities;
     currentItem = item;
     document.getElementById('edit-id').value = item.id;
     document.getElementById('edit-name').value = item.name;
-    
-    // Set edit categories
     editCategorySelect.innerHTML = '';
     categories[item.type].forEach(cat => {
       const opt = document.createElement('option');
@@ -262,47 +402,33 @@ const netWorth = totalAssets - totalLiabilities;
       if (cat === item.category) opt.selected = true;
       editCategorySelect.appendChild(opt);
     });
-
-    // Populate snapshots
     const list = document.getElementById('snapshot-list');
     list.innerHTML = '';
     item.allSnapshots.forEach(snap => {
       const div = document.createElement('div');
       div.className = 'flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-[10px]';
-      div.innerHTML = `
-        <span class="opacity-40">${snap.snapshot_date}</span>
-        <div class="flex items-center gap-2">
-            <span class="opacity-20">$</span>
-            <input type="number" value="${snap.balance}" onchange="saveSnapshot('${item.id}', this.value, '${snap.snapshot_date}')" class="w-16 font-bold focus:outline-none bg-transparent text-right" />
-        </div>
-      `;
+      div.innerHTML = `<span>${snap.snapshot_date}</span><input type="number" value="${snap.balance}" onchange="saveSnapshot('${item.id}', this.value, '${snap.snapshot_date}')" class="w-16 font-bold focus:outline-none bg-transparent text-right" />`;
       list.appendChild(div);
     });
-
     document.getElementById('edit-modal').showModal();
   };
 
   window.saveSnapshot = async (id, val, date = null) => {
     const body = new URLSearchParams({ accountId: id, balance: val });
     if (date) body.append('date', date);
-    
-    const res = await fetch('/api/snapshots', { method: 'POST', body });
-    if (res.ok) {
-        // Subtle feedback
-    }
+    await fetch('/api/snapshots', { method: 'POST', body });
   };
 
   window.savePastSnapshot = async () => {
     const date = document.getElementById('past-date').value;
     const balance = document.getElementById('past-balance').value;
     if (!date || !balance) return alert('Date and balance required');
-    
     await saveSnapshot(currentItem.id, balance, date);
     location.reload();
   };
 
   window.deleteAccount = async () => {
-    if (!confirm('This will delete all history for this item. Continue?')) return;
+    if (!confirm('Delete entire item?')) return;
     const res = await fetch(`/api/accounts?id=${currentItem.id}`, { method: 'DELETE' });
     if (res.ok) location.reload();
   };
