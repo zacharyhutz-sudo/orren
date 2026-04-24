@@ -12,7 +12,7 @@ import Layout from '../layouts/Layout.astro';
     <!-- Total Net Worth -->
     <div class="bg-[#1a1a1a] text-white p-12 text-center space-y-4">
       <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Consolidated Wealth</span>
-      <h3 class="text-6xl font-['Cormorant_Garamond'] tracking-tighter">$142,500.00</h3>
+      <h3 class="text-6xl font-bold tracking-tighter">$142,500.00</h3>
       <div class="flex justify-center items-center gap-2 text-[#7ea493]">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
         <span class="text-[10px] font-bold uppercase tracking-widest">+2.4% this month</span>
@@ -31,7 +31,7 @@ import Layout from '../layouts/Layout.astro';
           ].map(item => (
             <div class="bg-white p-6 flex justify-between items-center border-l-2 border-[#7ea493]">
               <span class="font-['Cormorant_Garamond'] italic text-lg">{item.name}</span>
-              <span class="font-['Cormorant_Garamond'] tracking-tighter text-lg">${item.value.toLocaleString()}</span>
+              <span class="font-bold tracking-tighter text-lg">${item.value.toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -46,7 +46,7 @@ import Layout from '../layouts/Layout.astro';
           ].map(item => (
             <div class="bg-white p-6 flex justify-between items-center border-l-2 border-[#B18B53]/20">
               <span class="font-['Cormorant_Garamond'] italic text-lg">{item.name}</span>
-              <span class="font-['Cormorant_Garamond'] tracking-tighter text-lg">${item.value.toLocaleString()}</span>
+              <span class="font-bold tracking-tighter text-lg">${item.value.toLocaleString()}</span>
             </div>
           ))}
         </div>
