@@ -9,7 +9,7 @@ import Layout from "../layouts/Layout.astro";
       <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Access your Orren dashboard</p>
     </header>
 
-    <form action="/orren/api/auth/signin" method="POST" class="space-y-6">
+    <form action="/api/auth/signin" method="POST" class="space-y-6">
       <div class="space-y-4">
         <div class="space-y-1">
           <label for="email" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Email Address</label>
@@ -38,7 +38,7 @@ import Layout from "../layouts/Layout.astro";
       </button>
       
       <div class="text-center">
-        <a href="/orren/register" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Create Account</a>
+        <a href="/register" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Create Account</a>
       </div>
     </form>
   </div>

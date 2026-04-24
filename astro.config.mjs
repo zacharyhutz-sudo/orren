@@ -5,8 +5,7 @@ import netlify from '@astrojs/netlify';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://zacharyhutz-sudo.github.io',
-  base: '/orren',
+  site: 'https://orrenmoney.netlify.app',
   output: 'server',
   adapter: netlify(),
   vite: {
