@@ -22,7 +22,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const formData = await request.formData();
   const name = formData.get("name")?.toString();
   const type = formData.get("type")?.toString();
-  const initialBalance = parseFloat(formData.get("balance")?.toString() || "0");
+  const category = formData.get("category")?.toString();
+  const balance = parseFloat(formData.get("balance")?.toString() || "0");
 
   if (!name || !type) {
     return new Response("Name and type are required", { status: 400 });
@@ -31,7 +32,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   // 1. Create the account
   const { data: account, error: accountError } = await supabase
     .from("accounts")
-    .insert([{ name, type, user_id: user.id }])
+    .insert([{ name, type, category, user_id: user.id }])
     .select()
     .single();
 
@@ -46,7 +47,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       .insert([{ 
         account_id: account.id, 
         user_id: user.id, 
-        balance: initialBalance,
+        balance: balance,
         snapshot_date: new Date().toISOString().split('T')[0]
       }]);
 
