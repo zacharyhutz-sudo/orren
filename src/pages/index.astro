@@ -1,13 +1,10 @@
 ---
-import Layout from '../layouts/Layout.astro';
----
+const accessToken = Astro.cookies.get("sb-access-token")?.value;
+const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
 
-<Layout title="Redirecting...">
-  <div class="px-6 py-24 text-center">
-    <p class="text-[10px] font-bold uppercase tracking-widest opacity-40">Redirecting...</p>
-    <script is:inline>
-      // Client-side fallback redirect
-      window.location.href = "/signin";
-    </script>
-  </div>
-</Layout>
+if (accessToken && refreshToken) {
+  return Astro.redirect("/budget");
+} else {
+  return Astro.redirect("/signin");
+}
+---
