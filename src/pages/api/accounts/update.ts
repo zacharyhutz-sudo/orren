@@ -19,27 +19,25 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   const formData = await request.formData();
-  const accountId = formData.get("accountId")?.toString();
-  const balance = parseFloat(formData.get("balance")?.toString() || "0");
-  const date = formData.get("date")?.toString() || new Date().toISOString().split('T')[0];
+  const id = formData.get("id")?.toString();
+  const name = formData.get("name")?.toString();
+  const category = formData.get("category")?.toString();
+  const type = formData.get("type")?.toString();
 
-  if (!accountId) {
-    return new Response("Account ID required", { status: 400 });
-  }
+  if (!id) return new Response("ID required", { status: 400 });
 
-  // Upsert snapshot for today
+  const updateData: any = {};
+  if (name) updateData.name = name;
+  if (category) updateData.category = category;
+  if (type) updateData.type = type;
+
   const { error } = await supabase
-    .from("account_snapshots")
-    .upsert({ 
-      account_id: accountId, 
-      user_id: user.id, 
-      balance: balance,
-      snapshot_date: date
-    }, { onConflict: 'account_id,snapshot_date' });
+    .from("accounts")
+    .update(updateData)
+    .eq("id", id)
+    .eq("user_id", user.id);
 
-  if (error) {
-    return new Response(error.message, { status: 500 });
-  }
+  if (error) return new Response(error.message, { status: 500 });
 
   return new Response(null, { status: 204 });
 };
