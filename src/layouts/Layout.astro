@@ -42,17 +42,18 @@ const { title } = Astro.props;
     <!-- Desktop Navigation -->
     <header class="hidden md:flex p-8 justify-between items-center border-b border-ink/5">
       <h1 class="text-3xl font-['Cormorant_Garamond'] tracking-tighter">ORREN</h1>
-      <nav>
+      <nav class="flex items-center gap-12">
         <ul class="flex gap-12 text-[10px] font-bold uppercase tracking-[0.2em]">
-          <li><a href="/" class="opacity-40 hover:opacity-100 transition-opacity">Home</a></li>
           <li><a href="/budget" class="opacity-40 hover:opacity-100 transition-opacity">Budget</a></li>
           <li><a href="/net-worth" class="opacity-40 hover:opacity-100 transition-opacity">Net Worth</a></li>
-          <li>
-            <form action="/api/auth/signout" method="POST" class="inline">
-              <button type="submit" class="opacity-40 hover:opacity-100 transition-opacity cursor-pointer">Sign Out</button>
-            </form>
-          </li>
         </ul>
+        <div class="h-4 w-px bg-ink/10"></div>
+        <a href="/profile" class="opacity-40 hover:opacity-100 transition-opacity flex items-center gap-2 group">
+          <span class="text-[10px] font-bold uppercase tracking-[0.2em]">Profile</span>
+          <div class="p-2 border border-[#1a1a1a]/5 rounded-full group-hover:border-[#1a1a1a]/20 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+        </a>
       </nav>
     </header>
   </body>

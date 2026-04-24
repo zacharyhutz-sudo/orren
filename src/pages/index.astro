@@ -1,36 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { supabase } from '../lib/supabase';
-
-const accessToken = Astro.cookies.get("sb-access-token")?.value;
-const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
-
-// Redirect to signin if not authenticated
-if (!accessToken || !refreshToken) {
-  return Astro.redirect("/signin");
-}
-
-const { data: authData, error: authError } = await supabase.auth.setSession({
-  access_token: accessToken,
-  refresh_token: refreshToken,
-});
-
-if (authError || !authData.user) {
-  return Astro.redirect("/signin");
-}
-
-// Redirect to dashboard (budget) if they reach here and are logged in
-return Astro.redirect("/budget");
 ---
 
-<Layout title="Home">
-	<section class="px-8 py-24 md:py-48 flex flex-col items-center text-center">
-		<h2 class="text-6xl md:text-9xl font-['Cormorant_Garamond'] italic tracking-tighter mb-8 reveal-fade-up">
-			Orren
-		</h2>
-		<div class="w-24 h-px bg-ink/20 mb-8"></div>
-		<p class="max-w-md text-sm md:text-base opacity-60 leading-relaxed font-['Plus_Jakarta_Sans']">
-			Redirecting to your dashboard...
-		</p>
-	</section>
+<Layout title="Redirecting...">
+  <div class="px-6 py-24 text-center">
+    <p class="text-[10px] font-bold uppercase tracking-widest opacity-40">Redirecting...</p>
+    <script is:inline>
+      // Client-side fallback redirect
+      window.location.href = "/signin";
+    </script>
+  </div>
 </Layout>

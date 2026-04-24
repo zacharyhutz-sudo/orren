@@ -1,0 +1,51 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+const accessToken = Astro.cookies.get("sb-access-token")?.value;
+const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+
+const { data: authData, error: authError } = await supabase.auth.setSession({
+  access_token: accessToken,
+  refresh_token: refreshToken,
+});
+
+if (authError || !authData.user) {
+  return Astro.redirect("/signin");
+}
+
+const user = authData.user;
+---
+
+<Layout title="Profile">
+  <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
+    <header class="space-y-2">
+      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Your Profile</h2>
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Account Settings</p>
+    </header>
+
+    <div class="bg-white p-12 space-y-8 border border-[#1a1a1a]/5">
+      <div class="space-y-1">
+        <span class="text-[10px] font-bold uppercase tracking-widest opacity-40">Email Address</span>
+        <p class="text-xl font-['Cormorant_Garamond'] italic">{user.email}</p>
+      </div>
+
+      <div class="space-y-1">
+        <span class="text-[10px] font-bold uppercase tracking-widest opacity-40">Account ID</span>
+        <p class="text-[10px] font-mono opacity-30">{user.id}</p>
+      </div>
+
+      <div class="pt-8 border-t border-[#1a1a1a]/5">
+        <form action="/api/auth/signout" method="POST">
+          <button type="submit" class="w-full bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors cursor-pointer">
+            Sign Out
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>
