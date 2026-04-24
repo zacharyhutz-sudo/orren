@@ -3,27 +3,25 @@ import { defineMiddleware } from "astro:middleware";
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname, cookies, redirect } = context;
 
-  // If visiting the root, redirect based on auth status
-  if (pathname === "/" || pathname === "") {
-    const accessToken = cookies.get("sb-access-token")?.value;
-    const refreshToken = cookies.get("sb-refresh-token")?.value;
+  const accessToken = cookies.get("sb-access-token")?.value;
+  const refreshToken = cookies.get("sb-refresh-token")?.value;
+  const isLoggedIn = !!(accessToken && refreshToken);
 
-    if (!accessToken || !refreshToken) {
-      return redirect("/signin");
-    } else {
-      return redirect("/budget");
-    }
+  // Root redirect
+  if (pathname === "/" || pathname === "") {
+    return redirect(isLoggedIn ? "/budget" : "/signin");
   }
 
-  // Auth gating for protected routes
+  // Protected routes: redirect to signin if not logged in
   const protectedRoutes = ["/budget", "/net-worth", "/profile"];
-  if (protectedRoutes.some(route => pathname.startsWith(route))) {
-    const accessToken = cookies.get("sb-access-token")?.value;
-    const refreshToken = cookies.get("sb-refresh-token")?.value;
+  if (protectedRoutes.some(route => pathname.startsWith(route)) && !isLoggedIn) {
+    return redirect("/signin");
+  }
 
-    if (!accessToken || !refreshToken) {
-      return redirect("/signin");
-    }
+  // Auth routes: redirect to dashboard if already logged in
+  const authRoutes = ["/signin", "/register"];
+  if (authRoutes.some(route => pathname.startsWith(route)) && isLoggedIn) {
+    return redirect("/budget");
   }
 
   return next();
