@@ -125,7 +125,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         
         <div class="text-center space-y-2">
             <span class="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Remaining</span>
-            <h3 class="text-6xl font-bold tracking-tighter ${remaining < 0 ? 'text-[#B18B53]' : ''}">${remaining < 0 ? '-' : ''}${Math.abs(remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+            <h3 class="text-6xl font-bold tracking-tighter ${remaining < 0 ? 'text-[#B18B53]' : ''}">${remaining < 0 ? '' : ''}${remaining.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
             {remaining > 0 && (
                 <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-[#7ea493] opacity-60">
                     Est. ${dailyLeft.toLocaleString(undefined, { maximumFractionDigits: 0 })} / day left
@@ -177,17 +177,17 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         <div id="tx-list" class="space-y-2">
             {(transactions || []).length === 0 && <p class="text-xs opacity-40 italic">No transactions this month.</p>}
             {transactions?.map(t => (
-                <div class={`tx-row flex justify-between items-center p-4 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative ${!t.category_id ? 'needs-cat' : ''}`}>
-                    <div class="space-y-0.5">
-                        <p class="font-bold tracking-tight">{t.merchant}</p>
-                        <p class="text-[9px] font-bold uppercase tracking-widest opacity-30">{t.budget_categories?.name || 'Uncategorized'} • {new Date(t.date + 'T12:00:00').toLocaleDateString()}</p>
+                <div class={`tx-row flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative ${!t.category_id ? 'needs-cat' : ''}`}>
+                    <div class="flex flex-1 items-center gap-3 min-w-0">
+                        <div class="w-1.5 h-1.5 rounded-full bg-[#B18B53] shrink-0 opacity-0 group-[.needs-cat]:opacity-100"></div>
+                        <p class="font-bold tracking-tight truncate flex-1">{t.merchant} <span class="text-[9px] font-normal opacity-30 uppercase ml-2">{t.budget_categories?.name || 'Uncategorized'} • {new Date(t.date + 'T12:00:00').toLocaleDateString()}</span></p>
                     </div>
-                    <div class="text-right flex items-center gap-4">
+                    <div class="text-right flex items-center gap-4 shrink-0">
                         <p class={`font-bold tracking-tighter ${t.type === 'income' ? 'text-[#7ea493]' : ''}`}>
                             {t.type === 'income' ? '+' : ''}${Number(t.amount).toLocaleString()}
                         </p>
-                        <button class="btn-delete-tx opacity-0 group-hover:opacity-100 text-red-500 transition-opacity" data-id={t.id}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        <button class="btn-edit-tx p-1 opacity-0 group-hover:opacity-100 transition-opacity" data-tx={JSON.stringify(t)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-40 hover:opacity-100"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                         </button>
                     </div>
                 </div>
@@ -269,10 +269,11 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
       </div>
   </dialog>
 
-  <!-- Transaction Modal -->
+  <!-- Transaction Modal (Handles both Add & Edit) -->
   <dialog id="transaction-modal" class="bg-white border border-[#1a1a1a]/10 p-10 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
       <form action="/api/transactions" method="POST" class="space-y-8">
-        <header class="text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">New Transaction</h3></header>
+        <input type="hidden" name="id" id="form-tx-id" />
+        <header class="text-center"><h3 id="form-tx-title" class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">New Transaction</h3></header>
         <div class="space-y-4">
             <div class="flex bg-[#f2efeb] p-1">
                 <label class="flex-1 text-center py-2 text-[9px] font-bold uppercase tracking-widest cursor-pointer has-[:checked]:bg-white transition-colors">
@@ -283,19 +284,20 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                 </label>
             </div>
             <input type="date" name="date" id="tx-date" value={now.toISOString().split('T')[0]} required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
-            <input type="text" name="merchant" placeholder="Merchant / Description" required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
+            <input type="text" name="merchant" id="tx-merchant" placeholder="Merchant / Description" required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
             <div class="flex items-center gap-2 bg-[#f2efeb] p-4">
                 <span class="text-sm opacity-30">$</span>
-                <input type="number" step="0.01" name="amount" placeholder="0.00" required class="w-full bg-transparent text-[10px] font-bold focus:outline-none" />
+                <input type="number" step="0.01" name="amount" id="tx-amount" placeholder="0.00" required class="w-full bg-transparent text-[10px] font-bold focus:outline-none" />
             </div>
             <select name="category_id" id="tx-category" class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none">
                 <option value="">No Category</option>
                 {categories?.map(cat => <option value={cat.id}>{cat.name}</option>)}
             </select>
-            <textarea name="notes" placeholder="Optional notes" class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none h-20 resize-none"></textarea>
+            <textarea name="notes" id="tx-notes" placeholder="Optional notes" class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none h-20 resize-none"></textarea>
         </div>
         <div class="flex flex-col gap-4">
-            <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Record Transaction</button>
+            <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save Transaction</button>
+            <button type="button" id="btn-delete-active-tx" class="hidden text-[10px] font-bold uppercase tracking-widest text-red-500 hover:underline">Delete Transaction</button>
             <button type="button" onclick="document.getElementById('transaction-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Cancel</button>
         </div>
       </form>
@@ -343,11 +345,12 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
             complete: function(results) {
                 const rows = results.data;
                 pendingTransactions = rows.map(row => {
-                    // Try to map common bank CSV headers
                     const date = row.Date || row.date || row.Transaction_Date || '';
                     const merchant = row.Description || row.Merchant || row.description || row.Payee || '';
-                    const amount = Math.abs(parseFloat(row.Amount || row.amount || row.Value || 0));
-                    const type = (parseFloat(row.Amount || row.amount || 0) < 0) ? 'expense' : 'income';
+                    const amountRaw = row.Amount || row.amount || row.Value || '0';
+                    const amountClean = parseFloat(amountRaw.replace(/[$,]/g, ''));
+                    const amount = Math.abs(amountClean);
+                    const type = (amountClean < 0) ? 'expense' : 'income';
                     
                     return {
                         date: formatDate(date),
@@ -401,7 +404,53 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         else alert('Error importing transactions');
     };
 
-    // 3. Persistent Modals Logic (Remember last category/date)
+    // 3. Modal Management (Edit & Add)
+    const txModal = document.getElementById('transaction-modal');
+    const deleteBtn = document.getElementById('btn-delete-active-tx');
+
+    function openTxModal(data = null) {
+        const title = document.getElementById('form-tx-title');
+        const idInput = document.getElementById('form-tx-id');
+        const merchantInput = document.getElementById('tx-merchant');
+        const amountInput = document.getElementById('tx-amount');
+        const dateInput = document.getElementById('tx-date');
+        const catInput = document.getElementById('tx-category');
+        const notesInput = document.getElementById('tx-notes');
+        
+        if (data) {
+            title.textContent = 'Edit Transaction';
+            idInput.value = data.id;
+            merchantInput.value = data.merchant;
+            amountInput.value = data.amount;
+            dateInput.value = data.date;
+            catInput.value = data.category_id || '';
+            notesInput.value = data.notes || '';
+            document.querySelector(`input[name="type"][value="${data.type}"]`).checked = true;
+            deleteBtn.classList.remove('hidden');
+            deleteBtn.onclick = async () => {
+                if (!confirm('Delete this transaction?')) return;
+                const res = await fetch(`/api/transactions?id=${data.id}`, { method: 'DELETE' });
+                if (res.ok) location.reload();
+            };
+        } else {
+            title.textContent = 'New Transaction';
+            idInput.value = '';
+            txForm.reset();
+            // Restore last used values for convenience
+            const lastCat = localStorage.getItem('orren_last_cat');
+            const lastDate = localStorage.getItem('orren_last_date');
+            if (lastCat) catInput.value = lastCat;
+            if (lastDate && lastDate.startsWith(currentMonthStr)) dateInput.value = lastDate;
+            deleteBtn.classList.add('hidden');
+        }
+        txModal.showModal();
+    }
+
+    document.getElementById('btn-add-transaction')?.addEventListener('click', () => openTxModal());
+    document.querySelectorAll('.btn-edit-tx').forEach(btn => {
+        btn.onclick = () => openTxModal(JSON.parse(btn.dataset.tx));
+    });
+
     const txForm = document.querySelector('#transaction-modal form');
     txForm.onsubmit = () => {
         const cat = document.getElementById('tx-category').value;
@@ -410,27 +459,8 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         localStorage.setItem('orren_last_date', date);
     };
 
-    window.addEventListener('DOMContentLoaded', () => {
-        const lastCat = localStorage.getItem('orren_last_cat');
-        const lastDate = localStorage.getItem('orren_last_date');
-        if (lastCat) document.getElementById('tx-category').value = lastCat;
-        if (lastDate && lastDate.startsWith(currentMonthStr)) document.getElementById('tx-date').value = lastDate;
-    });
-
-    // Existing delete logic
-    document.getElementById('btn-add-transaction')?.addEventListener('click', () => {
-        document.getElementById('transaction-modal').showModal();
-    });
     document.getElementById('btn-manage-categories')?.addEventListener('click', () => {
         document.getElementById('category-modal').showModal();
-    });
-
-    document.querySelectorAll('.btn-delete-tx').forEach(btn => {
-        btn.onclick = async () => {
-            if (!confirm('Delete transaction?')) return;
-            const res = await fetch(`/api/transactions?id=${btn.dataset.id}`, { method: 'DELETE' });
-            if (res.ok) location.reload();
-        };
     });
 
     document.querySelectorAll('.btn-delete-cat').forEach(btn => {
