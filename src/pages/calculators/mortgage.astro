@@ -1,0 +1,99 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Mortgage Calculator">
+  <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
+    <header class="space-y-2">
+      <a href="/calculators" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 flex items-center gap-2 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Tools
+      </a>
+      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Mortgage Payment</h2>
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Monthly Breakdown</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div class="space-y-6">
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Home Price</label>
+          <div class="flex items-center gap-2 bg-white border border-[#1a1a1a]/5 p-4">
+            <span class="opacity-30 text-sm">$</span>
+            <input type="number" id="price" value="400000" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Down Payment</label>
+          <div class="flex items-center gap-2 bg-white border border-[#1a1a1a]/5 p-4">
+            <span class="opacity-30 text-sm">$</span>
+            <input type="number" id="down" value="80000" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Interest Rate (%)</label>
+          <div class="bg-white border border-[#1a1a1a]/5 p-4">
+            <input type="number" id="rate" value="6.5" step="0.1" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Loan Term (Years)</label>
+          <select id="term" class="w-full bg-white border border-[#1a1a1a]/5 p-4 font-bold tracking-tighter focus:outline-none appearance-none">
+            <option value="30">30 Year Fixed</option>
+            <option value="15">15 Year Fixed</option>
+            <option value="10">10 Year Fixed</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bg-[#1a1a1a] text-white p-12 text-center flex flex-col justify-center space-y-6">
+        <div class="space-y-2">
+            <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Monthly P&I</span>
+            <h3 id="monthly-pi" class="text-5xl font-bold tracking-tighter">$0.00</h3>
+        </div>
+        <div class="pt-6 border-t border-white/5 space-y-4">
+            <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-40">
+                <span>Loan Amount</span>
+                <span id="loan-amount">$0</span>
+            </div>
+            <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-40">
+                <span>Total Interest</span>
+                <span id="total-interest">$0</span>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script is:inline>
+  function calculate() {
+    const price = parseFloat(document.getElementById('price').value) || 0;
+    const down = parseFloat(document.getElementById('down').value) || 0;
+    const rate = (parseFloat(document.getElementById('rate').value) || 0) / 100 / 12;
+    const years = parseInt(document.getElementById('term').value) || 30;
+    const months = years * 12;
+    
+    const principal = price - down;
+    document.getElementById('loan-amount').textContent = `$${principal.toLocaleString()}`;
+
+    if (rate === 0) {
+        const pi = principal / months;
+        document.getElementById('monthly-pi').textContent = `$${pi.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        return;
+    }
+
+    const pi = (principal * rate * Math.pow(1 + rate, months)) / (Math.pow(1 + rate, months) - 1);
+    const totalPay = pi * months;
+    const interest = totalPay - principal;
+
+    document.getElementById('monthly-pi').textContent = `$${pi.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('total-interest').textContent = `$${interest.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    ['price', 'down', 'rate', 'term'].forEach(id => {
+      document.getElementById(id).addEventListener('input', calculate);
+    });
+    calculate();
+  });
+</script>

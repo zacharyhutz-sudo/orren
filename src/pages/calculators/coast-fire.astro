@@ -1,0 +1,131 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Coast FIRE Calculator">
+  <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
+    <header class="space-y-2">
+      <a href="/calculators" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 flex items-center gap-2 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Tools
+      </a>
+      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Coast FIRE</h2>
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Financial Independence</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div class="space-y-6">
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Current Age</label>
+          <div class="bg-white border border-[#1a1a1a]/5 p-4">
+            <input type="number" id="age" value="25" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Retirement Age</label>
+          <div class="bg-white border border-[#1a1a1a]/5 p-4">
+            <input type="number" id="retire-age" value="65" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Annual Spending in Retirement</label>
+          <div class="flex items-center gap-2 bg-white border border-[#1a1a1a]/5 p-4">
+            <span class="opacity-30 text-sm">$</span>
+            <input type="number" id="spending" value="60000" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Investment Return (%)</label>
+          <div class="bg-white border border-[#1a1a1a]/5 p-4">
+            <input type="number" id="rate" value="7" step="0.1" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-[#1a1a1a] text-white p-12 text-center flex flex-col justify-center space-y-6">
+        <div class="space-y-2">
+            <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Your Coast FIRE Number</span>
+            <h3 id="coast-number" class="text-5xl font-bold tracking-tighter">$0</h3>
+            <p class="text-[10px] font-bold uppercase tracking-widest opacity-40">Target Portfolio: <span id="target-portfolio">$0</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graph -->
+    <section class="bg-white p-8 border border-[#1a1a1a]/5 space-y-4">
+      <div class="flex justify-between items-end">
+        <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Projection to Retirement</h4>
+      </div>
+      <div class="h-80 w-full">
+        <canvas id="coastChart"></canvas>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById('coastChart').getContext('2d');
+    let chart;
+
+    function calculate() {
+      const age = parseInt(document.getElementById('age').value) || 0;
+      const retireAge = parseInt(document.getElementById('retire-age').value) || 0;
+      const spending = parseFloat(document.getElementById('spending').value) || 0;
+      const rate = (parseFloat(document.getElementById('rate').value) || 0) / 100;
+      
+      const targetPortfolio = spending * 25; // 4% Rule
+      const yearsToGrow = retireAge - age;
+      
+      // Target / (1 + r)^n
+      const coastNumber = targetPortfolio / Math.pow(1 + rate, yearsToGrow);
+
+      document.getElementById('coast-number').textContent = `$${coastNumber.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+      document.getElementById('target-portfolio').textContent = `$${targetPortfolio.toLocaleString()}`;
+
+      const labels = [];
+      const data = [];
+      for (let i = age; i <= retireAge; i++) {
+        labels.push(`Age ${i}`);
+        data.push(coastNumber * Math.pow(1 + rate, i - age));
+      }
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+      } else {
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              borderColor: '#1a1a1a',
+              backgroundColor: 'rgba(177, 139, 83, 0.1)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { ticks: { font: { size: 9 } } },
+              x: { ticks: { font: { size: 9 } }, grid: { display: false } }
+            }
+          }
+        });
+      }
+    }
+
+    ['age', 'retire-age', 'spending', 'rate'].forEach(id => {
+      document.getElementById(id).addEventListener('input', calculate);
+    });
+
+    calculate();
+  });
+</script>

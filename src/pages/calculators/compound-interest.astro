@@ -1,0 +1,133 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Compound Interest Calculator">
+  <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
+    <header class="space-y-2">
+      <a href="/calculators" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 flex items-center gap-2 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Tools
+      </a>
+      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Compound Interest</h2>
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Wealth Projection</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <!-- Inputs -->
+      <div class="space-y-6">
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Initial Balance</label>
+          <div class="flex items-center gap-2 bg-white border border-[#1a1a1a]/5 p-4">
+            <span class="opacity-30 text-sm">$</span>
+            <input type="number" id="initial" value="10000" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Monthly Contribution</label>
+          <div class="flex items-center gap-2 bg-white border border-[#1a1a1a]/5 p-4">
+            <span class="opacity-30 text-sm">$</span>
+            <input type="number" id="monthly" value="500" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Interest Rate (%)</label>
+          <div class="bg-white border border-[#1a1a1a]/5 p-4">
+            <input type="number" id="rate" value="8" step="0.1" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest opacity-40">Years to Grow</label>
+          <div class="bg-white border border-[#1a1a1a]/5 p-4">
+            <input type="number" id="years" value="30" class="w-full focus:outline-none font-bold tracking-tighter" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Card -->
+      <div class="bg-[#1a1a1a] text-white p-12 text-center flex flex-col justify-center space-y-4">
+        <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Projected Value</span>
+        <h3 id="total-value" class="text-5xl font-bold tracking-tighter">$0.00</h3>
+        <p id="total-contributed" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Principal: $0.00</p>
+      </div>
+    </div>
+
+    <!-- Graph -->
+    <section class="bg-white p-8 border border-[#1a1a1a]/5">
+      <div class="h-80 w-full">
+        <canvas id="compoundChart"></canvas>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById('compoundChart').getContext('2d');
+    let chart;
+
+    function calculate() {
+      const initial = parseFloat(document.getElementById('initial').value) || 0;
+      const monthly = parseFloat(document.getElementById('monthly').value) || 0;
+      const rate = (parseFloat(document.getElementById('rate').value) || 0) / 100 / 12;
+      const years = parseInt(document.getElementById('years').value) || 1;
+      const months = years * 12;
+
+      let balance = initial;
+      let totalContributed = initial;
+      const data = [initial];
+      const labels = [0];
+
+      for (let i = 1; i <= months; i++) {
+        balance = (balance + monthly) * (1 + rate);
+        totalContributed += monthly;
+        if (i % 12 === 0) {
+          data.push(balance);
+          labels.push(i / 12);
+        }
+      }
+
+      document.getElementById('total-value').textContent = `$${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+      document.getElementById('total-contributed').textContent = `Principal: $${totalContributed.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+      } else {
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Growth',
+              data: data,
+              borderColor: '#1a1a1a',
+              backgroundColor: 'rgba(177, 139, 83, 0.1)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { ticks: { font: { size: 9 } }, grid: { borderDash: [5, 5] } },
+              x: { ticks: { font: { size: 9 } }, grid: { display: false } }
+            }
+          }
+        });
+      }
+    }
+
+    ['initial', 'monthly', 'rate', 'years'].forEach(id => {
+      document.getElementById(id).addEventListener('input', calculate);
+    });
+
+    calculate();
+  });
+</script>
