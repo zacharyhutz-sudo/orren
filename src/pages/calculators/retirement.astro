@@ -61,7 +61,7 @@ const investmentAccounts = (accountsData || []).map(acc => {
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <!-- Controls -->
+            <!-- Left Controls -->
             <div class="lg:col-span-1 space-y-8">
                 <div class="space-y-6">
                     <div class="flex justify-between items-center">
@@ -75,11 +75,11 @@ const investmentAccounts = (accountsData || []).map(acc => {
                             <input type="number" id="retire-age" value="65" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
                         </div>
                         
-                        <!-- These hide in advanced mode -->
                         <div id="simple-logic-inputs" class="space-y-4">
                             <div class="space-y-2">
-                                <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Est. Return (%)</label>
+                                <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Global Est. Return (%)</label>
                                 <input type="number" id="global-rate" value="8" step="0.1" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                                <p class="text-[8px] opacity-20 uppercase tracking-wider">Applied only to Investment accounts</p>
                             </div>
                             <div class="space-y-2">
                                 <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Monthly Contribution ($)</label>
@@ -95,15 +95,34 @@ const investmentAccounts = (accountsData || []).map(acc => {
                 </div>
 
                 <div class="space-y-4">
-                    <h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Included Accounts</h4>
+                    <h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Included Portfolio</h4>
                     <div id="account-selector" class="space-y-2 max-h-60 overflow-y-auto no-scrollbar pr-2">
-                        <!-- Injected by JS -->
                     </div>
                 </div>
             </div>
 
-            <!-- Results -->
+            <!-- Right Results -->
             <div class="lg:col-span-2 space-y-12">
+                
+                <!-- Advanced Table (Positioned Above Heroes) -->
+                <div id="advanced-table-container" class="hidden space-y-6 bg-white/5 p-8 border border-[#B18B53]/20">
+                    <h4 class="text-[10px] font-bold uppercase tracking-widest text-[#B18B53]">Advanced Account Breakdown</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-[10px] font-bold uppercase tracking-tighter">
+                            <thead class="opacity-40">
+                                <tr>
+                                    <th class="pb-4">Account</th>
+                                    <th class="pb-4">Est. Return (%)</th>
+                                    <th class="pb-4">Monthly Contribution ($)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="advanced-rows" class="divide-y divide-white/5">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Hero Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div class="bg-white/5 p-8 border border-white/5 space-y-2">
                         <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">Monthly Income</span>
@@ -128,25 +147,6 @@ const investmentAccounts = (accountsData || []).map(acc => {
                         <canvas id="retirementChart"></canvas>
                     </div>
                 </div>
-
-                <!-- Advanced Table (Hidden by default) -->
-                <div id="advanced-table-container" class="hidden space-y-6 bg-white/5 p-8 border border-[#B18B53]/20">
-                    <h4 class="text-[10px] font-bold uppercase tracking-widest text-[#B18B53]">Advanced Account Breakdown</h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-[10px] font-bold uppercase tracking-tighter">
-                            <thead class="opacity-40">
-                                <tr>
-                                    <th class="pb-4">Account</th>
-                                    <th class="pb-4">Rate (%)</th>
-                                    <th class="pb-4">Monthly ($)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="advanced-rows" class="divide-y divide-white/5">
-                                <!-- Rows injected by JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -163,15 +163,17 @@ const investmentAccounts = (accountsData || []).map(acc => {
         let isAdvanced = false;
         let chart;
 
-        // User Data State
-        const accountStates = accounts.map(acc => ({
-            ...acc,
-            included: acc.category === 'Investments',
-            rate: 8.0,
-            monthly: 0
-        }));
+        // User Data State with Category-Aware Defaults
+        const accountStates = accounts.map(acc => {
+            const isInv = acc.category === 'Investments';
+            return {
+                ...acc,
+                included: isInv,
+                rate: isInv ? 8.0 : 0.0,
+                monthly: 0
+            };
+        });
 
-        // Initialize UI
         function initUI() {
             selector.innerHTML = '';
             advancedRows.innerHTML = '';
@@ -184,8 +186,8 @@ const investmentAccounts = (accountsData || []).map(acc => {
                     <div class="flex items-center gap-3">
                         <input type="checkbox" ${acc.included ? 'checked' : ''} data-index="${i}" class="acc-check accent-[#B18B53]" />
                         <div class="space-y-0.5">
-                            <p class="text-[10px] font-bold uppercase tracking-tight">${acc.name}</p>
-                            <p class="text-[8px] opacity-40 uppercase tracking-widest">$${acc.currentBalance.toLocaleString()}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-tight ${acc.type === 'liability' ? 'text-[#B18B53]' : ''}">${acc.name}</p>
+                            <p class="text-[8px] opacity-40 uppercase tracking-widest">${acc.type === 'liability' ? '-' : ''}$${acc.currentBalance.toLocaleString()}</p>
                         </div>
                     </div>
                 `;
@@ -226,9 +228,9 @@ const investmentAccounts = (accountsData || []).map(acc => {
         function calculate() {
             const retireAge = parseInt(document.getElementById('retire-age').value) || 65;
             const globalRate = (parseFloat(document.getElementById('global-rate').value) || 0) / 100 / 12;
-            const globalMonthly = parseFloat(document.getElementById('global-monthly').value) || 0;
+            const globalMonthlyTotal = parseFloat(document.getElementById('global-monthly').value) || 0;
             const swr = (parseFloat(document.getElementById('swr').value) || 0) / 100;
-            const currentAge = 25; // Default for now
+            const currentAge = 25; 
             const years = retireAge - currentAge;
             const months = years * 12;
 
@@ -237,20 +239,38 @@ const investmentAccounts = (accountsData || []).map(acc => {
             const labels = [];
             const data = [];
             
-            // Total calculation loop
-            let totalPortfolio = 0;
             const activeAccounts = accountStates.filter(a => a.included);
             
-            // Starting principal
-            let currentBalances = activeAccounts.map(a => a.currentBalance);
+            // Proportional contribution weights for Simple Mode
+            const totalBalanceForWeight = activeAccounts.reduce((sum, a) => sum + Math.abs(a.currentBalance), 0);
+            
+            // Initial snapshot values
+            let currentBalances = activeAccounts.map(a => {
+                return a.type === 'liability' ? -a.currentBalance : a.currentBalance;
+            });
             
             for (let m = 0; m <= months; m++) {
                 let monthlyTotal = 0;
                 for (let i = 0; i < activeAccounts.length; i++) {
                     const acc = activeAccounts[i];
+                    
                     if (m > 0) {
-                        const r = isAdvanced ? (acc.rate / 100 / 12) : globalRate;
-                        const contrib = isAdvanced ? acc.monthly : (globalMonthly / activeAccounts.length);
+                        let r, contrib;
+                        
+                        if (isAdvanced) {
+                            r = (acc.rate / 100 / 12);
+                            contrib = acc.monthly;
+                        } else {
+                            // Simple Mode: Rate logic (only investment category grows)
+                            r = acc.category === 'Investments' ? globalRate : 0;
+                            // Proportional split of the global contribution
+                            const weight = totalBalanceForWeight > 0 ? (Math.abs(acc.currentBalance) / totalBalanceForWeight) : (1 / activeAccounts.length);
+                            contrib = globalMonthlyTotal * weight;
+                        }
+                        
+                        // Liabilities grow (debt increases) if interest is set, otherwise stay static
+                        // Most users expect debt to decrease, but this is an investment calculator
+                        // Treat liabilities as static unless rate is set in Advanced
                         currentBalances[i] = (currentBalances[i] + contrib) * (1 + r);
                     }
                     monthlyTotal += currentBalances[i];
@@ -258,9 +278,9 @@ const investmentAccounts = (accountsData || []).map(acc => {
                 
                 if (m % 12 === 0) {
                     labels.push(`Age ${currentAge + (m/12)}`);
-                    data.push(monthlyTotal);
+                    data.push(Math.max(0, monthlyTotal));
                 }
-                totalPortfolio = monthlyTotal;
+                totalPortfolio = Math.max(0, monthlyTotal);
             }
 
             const annualWithdrawal = totalPortfolio * swr;
