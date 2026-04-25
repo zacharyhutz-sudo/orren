@@ -20,10 +20,17 @@ if (authError || !authData.user) {
 
 const user = authData.user;
 
-// Get current month bounds
-const now = new Date();
+// Month switching logic
+const url = new URL(Astro.request.url);
+const monthParam = url.searchParams.get('month'); // YYYY-MM
+const now = monthParam ? new Date(monthParam + '-02') : new Date();
+const currentMonthStr = now.toISOString().slice(0, 7);
+
 const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7);
+const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 7);
 
 // Fetch Categories
 const { data: categories } = await supabase
@@ -39,7 +46,7 @@ if (categories && categories.length === 0) {
     return Astro.redirect("/budget");
 }
 
-// Fetch Transactions for current month
+// Fetch Transactions for selected month
 const { data: transactions } = await supabase
   .from('transactions')
   .select('*, budget_categories(name, color)')
@@ -70,24 +77,41 @@ const catSpend = (categories || []).map(cat => {
         .reduce((sum, t) => sum + Number(t.amount), 0);
     return { ...cat, actual };
 });
+
+// Daily Budget Math
+const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+const today = new Date();
+const isCurrentMonth = today.getMonth() === now.getMonth() && today.getFullYear() === now.getFullYear();
+const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth;
+const daysRemaining = daysInMonth - dayOfMonth + 1;
+const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
 ---
 
 <Layout title="Budget">
+  <script is:inline define:vars={{ categories, currentMonthStr }}>
+    window.BUDGET_CATEGORIES = categories;
+  </script>
+
   <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
     <header class="space-y-6 md:flex md:justify-between md:items-end md:space-y-0">
-      <div>
+      <div class="space-y-2">
         <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Budget</h2>
-        <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">
-            {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </p>
+        <div class="flex items-center gap-4">
+            <a href={`/budget?month=${prevMonth}`} class="opacity-40 hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></a>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">
+                {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </p>
+            <a href={`/budget?month=${nextMonth}`} class="opacity-40 hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a>
+        </div>
       </div>
       <div class="flex flex-col gap-3 md:flex-row md:gap-2 w-full md:w-auto">
+        <button id="btn-import-csv" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-2 bg-white text-[#1a1a1a] hover:bg-[#f2efeb] transition-colors">Import CSV</button>
         <button id="btn-add-transaction" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">+ Transaction</button>
       </div>
     </header>
 
     <!-- Summary Card -->
-    <div class="bg-[#1a1a1a] text-white p-10 space-y-8">
+    <div class="bg-[#1a1a1a] text-white p-10 space-y-8 relative overflow-hidden">
         <div class="grid grid-cols-2 gap-8 text-center border-b border-white/5 pb-8">
             <div class="space-y-1">
                 <span class="text-[8px] font-bold uppercase tracking-[0.3em] opacity-40">Income</span>
@@ -102,6 +126,11 @@ const catSpend = (categories || []).map(cat => {
         <div class="text-center space-y-2">
             <span class="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Remaining</span>
             <h3 class="text-6xl font-bold tracking-tighter ${remaining < 0 ? 'text-[#B18B53]' : ''}">${remaining < 0 ? '-' : ''}${Math.abs(remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+            {remaining > 0 && (
+                <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-[#7ea493] opacity-60">
+                    Est. ${dailyLeft.toLocaleString(undefined, { maximumFractionDigits: 0 })} / day left
+                </p>
+            )}
         </div>
 
         <div class="space-y-2">
@@ -141,11 +170,14 @@ const catSpend = (categories || []).map(cat => {
 
     <!-- Recent Transactions -->
     <section class="space-y-6">
-        <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Recent Activity</h4>
-        <div class="space-y-2">
+        <div class="flex justify-between items-center">
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Recent Activity</h4>
+            <button id="btn-filter-uncategorized" class="text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 px-3 py-1 border border-[#1a1a1a]/5">Needs Category</button>
+        </div>
+        <div id="tx-list" class="space-y-2">
             {(transactions || []).length === 0 && <p class="text-xs opacity-40 italic">No transactions this month.</p>}
             {transactions?.map(t => (
-                <div class="flex justify-between items-center p-4 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative">
+                <div class={`tx-row flex justify-between items-center p-4 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative ${!t.category_id ? 'needs-cat' : ''}`}>
                     <div class="space-y-0.5">
                         <p class="font-bold tracking-tight">{t.merchant}</p>
                         <p class="text-[9px] font-bold uppercase tracking-widest opacity-30">{t.budget_categories?.name || 'Uncategorized'} • {new Date(t.date + 'T12:00:00').toLocaleDateString()}</p>
@@ -167,6 +199,41 @@ const catSpend = (categories || []).map(cat => {
         <p class="text-[9px] font-bold uppercase tracking-[0.2em] opacity-20">No bank login required. You control what transaction data you add.</p>
     </footer>
   </div>
+
+  <!-- CSV Import Modal -->
+  <dialog id="import-modal" class="bg-white border border-[#1a1a1a]/10 p-10 max-w-lg w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+    <div class="space-y-8">
+        <header class="text-center space-y-2">
+            <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Import CSV</h3>
+            <p class="text-[9px] font-bold uppercase tracking-widest opacity-40">Upload your bank statement</p>
+        </header>
+        
+        <div id="import-dropzone" class="border-2 border-dashed border-[#1a1a1a]/10 p-12 text-center cursor-pointer hover:border-[#B18B53]/40 transition-colors">
+            <input type="file" id="csv-file" accept=".csv" class="hidden" />
+            <p class="text-[10px] font-bold uppercase tracking-widest opacity-40">Click or drag CSV file</p>
+        </div>
+
+        <div id="import-preview" class="hidden space-y-6">
+            <div class="max-h-60 overflow-y-auto border border-[#1a1a1a]/5 no-scrollbar">
+                <table class="w-full text-left text-[9px] font-bold uppercase tracking-tighter">
+                    <thead class="sticky top-0 bg-[#f2efeb] opacity-40">
+                        <tr>
+                            <th class="p-3">Date</th>
+                            <th class="p-3">Merchant</th>
+                            <th class="p-3">Amount</th>
+                            <th class="p-3">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-body" class="divide-y divide-[#1a1a1a]/5">
+                    </tbody>
+                </table>
+            </div>
+            <button id="btn-confirm-import" class="w-full bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Confirm & Import</button>
+        </div>
+        
+        <button onclick="document.getElementById('import-modal').close()" class="w-full text-[9px] font-bold uppercase tracking-widest opacity-30">Cancel</button>
+    </div>
+  </dialog>
 
   <!-- Category Modal -->
   <dialog id="category-modal" class="bg-white border border-[#1a1a1a]/10 p-10 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
@@ -209,19 +276,19 @@ const catSpend = (categories || []).map(cat => {
         <div class="space-y-4">
             <div class="flex bg-[#f2efeb] p-1">
                 <label class="flex-1 text-center py-2 text-[9px] font-bold uppercase tracking-widest cursor-pointer has-[:checked]:bg-white transition-colors">
-                    <input type="radio" name="type" value="expense" checked class="hidden" /> Expense
+                    <input type="radio" name="type" id="tx-type-expense" value="expense" checked class="hidden" /> Expense
                 </label>
                 <label class="flex-1 text-center py-2 text-[9px] font-bold uppercase tracking-widest cursor-pointer has-[:checked]:bg-white transition-colors">
-                    <input type="radio" name="type" value="income" class="hidden" /> Income
+                    <input type="radio" name="type" id="tx-type-income" value="income" class="hidden" /> Income
                 </label>
             </div>
-            <input type="date" name="date" value={now.toISOString().split('T')[0]} required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
+            <input type="date" name="date" id="tx-date" value={now.toISOString().split('T')[0]} required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
             <input type="text" name="merchant" placeholder="Merchant / Description" required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
             <div class="flex items-center gap-2 bg-[#f2efeb] p-4">
                 <span class="text-sm opacity-30">$</span>
                 <input type="number" step="0.01" name="amount" placeholder="0.00" required class="w-full bg-transparent text-[10px] font-bold focus:outline-none" />
             </div>
-            <select name="category_id" class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none">
+            <select name="category_id" id="tx-category" class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none">
                 <option value="">No Category</option>
                 {categories?.map(cat => <option value={cat.id}>{cat.name}</option>)}
             </select>
@@ -235,7 +302,122 @@ const catSpend = (categories || []).map(cat => {
   </dialog>
 </Layout>
 
+<script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <script is:inline>
+    // 1. Transaction Filtering
+    let filterActive = false;
+    document.getElementById('btn-filter-uncategorized')?.addEventListener('click', (e) => {
+        filterActive = !filterActive;
+        const rows = document.querySelectorAll('.tx-row');
+        rows.forEach(r => {
+            if (filterActive && !r.classList.contains('needs-cat')) {
+                r.classList.add('hidden');
+            } else {
+                r.classList.remove('hidden');
+            }
+        });
+        e.target.classList.toggle('bg-[#1a1a1a]');
+        e.target.classList.toggle('text-white');
+    });
+
+    // 2. CSV Import Logic
+    const importModal = document.getElementById('import-modal');
+    const dropzone = document.getElementById('import-dropzone');
+    const fileInput = document.getElementById('csv-file');
+    const preview = document.getElementById('import-preview');
+    const previewBody = document.getElementById('preview-body');
+    let pendingTransactions = [];
+
+    document.getElementById('btn-import-csv')?.addEventListener('click', () => importModal.showModal());
+    dropzone.onclick = () => fileInput.click();
+
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+    };
+
+    function handleFile(file) {
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                const rows = results.data;
+                pendingTransactions = rows.map(row => {
+                    // Try to map common bank CSV headers
+                    const date = row.Date || row.date || row.Transaction_Date || '';
+                    const merchant = row.Description || row.Merchant || row.description || row.Payee || '';
+                    const amount = Math.abs(parseFloat(row.Amount || row.amount || row.Value || 0));
+                    const type = (parseFloat(row.Amount || row.amount || 0) < 0) ? 'expense' : 'income';
+                    
+                    return {
+                        date: formatDate(date),
+                        merchant: merchant,
+                        amount: amount,
+                        type: type
+                    };
+                }).filter(t => t.date && t.merchant && !isNaN(t.amount));
+
+                renderPreview();
+            }
+        });
+    }
+
+    function formatDate(str) {
+        try {
+            const d = new Date(str);
+            return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
+        } catch { return null; }
+    }
+
+    function renderPreview() {
+        dropzone.classList.add('hidden');
+        preview.classList.remove('hidden');
+        previewBody.innerHTML = '';
+        pendingTransactions.slice(0, 50).forEach(t => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-[#1a1a1a]/5';
+            tr.innerHTML = `
+                <td class="p-3">${t.date}</td>
+                <td class="p-3 truncate max-w-[100px]">${t.merchant}</td>
+                <td class="p-3">$${t.amount.toLocaleString()}</td>
+                <td class="p-3 opacity-40">${t.type}</td>
+            `;
+            previewBody.appendChild(tr);
+        });
+    }
+
+    document.getElementById('btn-confirm-import').onclick = async () => {
+        const btn = document.getElementById('btn-confirm-import');
+        btn.disabled = true;
+        btn.textContent = 'Importing...';
+
+        const res = await fetch('/api/import-transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactions: pendingTransactions })
+        });
+
+        if (res.ok) location.reload();
+        else alert('Error importing transactions');
+    };
+
+    // 3. Persistent Modals Logic (Remember last category/date)
+    const txForm = document.querySelector('#transaction-modal form');
+    txForm.onsubmit = () => {
+        const cat = document.getElementById('tx-category').value;
+        const date = document.getElementById('tx-date').value;
+        localStorage.setItem('orren_last_cat', cat);
+        localStorage.setItem('orren_last_date', date);
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const lastCat = localStorage.getItem('orren_last_cat');
+        const lastDate = localStorage.getItem('orren_last_date');
+        if (lastCat) document.getElementById('tx-category').value = lastCat;
+        if (lastDate && lastDate.startsWith(currentMonthStr)) document.getElementById('tx-date').value = lastDate;
+    });
+
+    // Existing delete logic
     document.getElementById('btn-add-transaction')?.addEventListener('click', () => {
         document.getElementById('transaction-modal').showModal();
     });
@@ -263,4 +445,5 @@ const catSpend = (categories || []).map(cat => {
 <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .needs-cat { border-left: 2px solid #B18B53 !important; }
 </style>
