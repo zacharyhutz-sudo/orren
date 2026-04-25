@@ -50,7 +50,6 @@ const milestoneData = milestoneDates.map((date, index) => {
     let totalLiabilities = 0;
     
     const accountStates = (accounts || []).map(acc => {
-        // Find snapshot for this exact date or the closest previous one
         const snap = acc.account_snapshots
             .filter((s: any) => s.snapshot_date <= date)
             .sort((a: any, b: any) => new Date(b.snapshot_date).getTime() - new Date(a.snapshot_date).getTime())[0];
@@ -70,8 +69,6 @@ const milestoneData = milestoneDates.map((date, index) => {
     });
 
     const netWorth = totalAssets - totalLiabilities;
-    const prevNetWorth = index > 0 ? milestoneDates[index-1] : null; // Handle delta later in JS
-
     return {
         date,
         netWorth,
@@ -81,7 +78,6 @@ const milestoneData = milestoneDates.map((date, index) => {
     };
 });
 
-// Final data for initial load (latest milestone)
 const latestMilestone = milestoneData[milestoneData.length - 1] || { 
     date: new Date().toISOString().split('T')[0], 
     netWorth: 0, totalAssets: 0, totalLiabilities: 0, accounts: [] 
@@ -89,13 +85,11 @@ const latestMilestone = milestoneData[milestoneData.length - 1] || {
 ---
 
 <Layout title="Net Worth">
-  <!-- Injection of all historical states -->
   <script is:inline define:vars={{ milestoneData }}>
     window.ORREN_MILESTONES = milestoneData;
   </script>
 
   <div class="space-y-0 pb-32">
-    <!-- 1. Milestone Navigator (Whoop Style) -->
     <nav class="sticky top-0 z-50 bg-[#f2efeb]/80 backdrop-blur-md border-b border-[#1a1a1a]/5 overflow-x-auto no-scrollbar">
         <div class="flex px-6 py-4 gap-8 min-w-max mx-auto max-w-2xl">
             {milestoneData.map((m, i) => {
@@ -103,12 +97,8 @@ const latestMilestone = milestoneData[milestoneData.length - 1] || {
                 const month = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
                 const day = dateObj.toLocaleDateString('en-US', { day: '2-digit' });
                 const isLast = i === milestoneData.length - 1;
-                
                 return (
-                    <button 
-                        data-date={m.date}
-                        class={`milestone-btn group flex flex-col items-center gap-1 transition-all ${isLast ? 'active' : 'opacity-30 hover:opacity-60'}`}
-                    >
+                    <button data-date={m.date} class={`milestone-btn group flex flex-col items-center gap-1 transition-all ${isLast ? 'active' : 'opacity-30 hover:opacity-60'}`}>
                         <span class="text-[8px] font-bold tracking-[0.2em]">{month}</span>
                         <span class="text-xl font-bold tracking-tighter leading-none group-[.active]:text-[#B18B53]">{day}</span>
                         <div class="w-1 h-1 rounded-full bg-[#B18B53] scale-0 group-[.active]:scale-100 transition-transform"></div>
@@ -119,96 +109,51 @@ const latestMilestone = milestoneData[milestoneData.length - 1] || {
     </nav>
 
     <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
-        <!-- Header -->
         <header class="space-y-6 md:flex md:justify-between md:items-end md:space-y-0">
         <div>
             <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Net Worth</h2>
             <p id="display-date" class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Recorded: {latestMilestone.date}</p>
         </div>
         <div class="flex flex-col gap-3 md:flex-row md:gap-2 w-full md:w-auto">
-            <button id="btn-open-import" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 hover:bg-[#B18B53] hover:text-white transition-colors">
-                Import CSV
-            </button>
-            <button id="btn-open-add" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">
-                + Add Item
-            </button>
+            <button id="btn-open-import" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 hover:bg-[#B18B53] hover:text-white transition-colors">Import CSV</button>
+            <button id="btn-open-add" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">+ Add Item</button>
         </div>
         </header>
 
-        <!-- Consolidated Wealth Card -->
-        <div class="bg-[#1a1a1a] text-white p-12 text-center space-y-4 relative overflow-hidden group">
+        <div class="bg-[#1a1a1a] text-white p-12 text-center space-y-4">
             <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Consolidated Wealth</span>
             <div class="space-y-1">
-                <h3 id="display-networth" class="text-6xl font-bold tracking-tighter transition-all duration-500">
-                    ${latestMilestone.netWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </h3>
-                <p id="display-delta" class="text-[10px] font-bold tracking-widest opacity-0 transition-all">
-                    <!-- Delta injected here -->
-                </p>
+                <h3 id="display-networth" class="text-6xl font-bold tracking-tighter transition-all duration-500">${latestMilestone.netWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+                <p id="display-delta" class="text-[10px] font-bold tracking-widest opacity-0 transition-all"></p>
             </div>
         </div>
 
-        <!-- Performance Graph -->
         <section class="bg-white p-8 border border-[#1a1a1a]/5 space-y-8">
-            <div class="flex justify-between items-center">
-                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Growth Trend</h4>
-                <div class="flex bg-[#f2efeb] p-1 rounded">
-                    <button data-interval="week" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Week</button>
-                    <button data-interval="month" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest bg-white shadow-sm opacity-100">Month</button>
-                    <button data-interval="year" class="interval-btn px-3 py-1 text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity">Year</button>
-                </div>
-            </div>
-            <div class="h-64 w-full">
-                <canvas id="trendChart"></canvas>
-            </div>
+            <div class="flex justify-between items-center"><h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Growth Trend</h4></div>
+            <div class="h-64 w-full"><canvas id="trendChart"></canvas></div>
         </section>
 
-        <!-- Allocation Chart -->
         <section class="bg-white p-12 border border-[#1a1a1a]/5 space-y-12">
-            <header class="text-center space-y-2">
-                <h4 class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Allocation</h4>
-                <p class="font-['Cormorant_Garamond'] italic text-2xl">Portfolio Composition</p>
-            </header>
+            <header class="text-center space-y-2"><h4 class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Allocation</h4><p class="font-['Cormorant_Garamond'] italic text-2xl">Portfolio Composition</p></header>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div class="relative aspect-square max-w-[200px] mx-auto w-full">
-                    <canvas id="allocationChart"></canvas>
-                </div>
-                <div id="allocation-legend" class="space-y-6">
-                    <!-- Legend injected here -->
-                </div>
+                <div class="relative aspect-square max-w-[200px] mx-auto w-full"><canvas id="allocationChart"></canvas></div>
+                <div id="allocation-legend" class="space-y-6"></div>
             </div>
         </section>
 
-        <!-- Assets vs Liabilities -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <section class="space-y-6">
-                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Assets</h4>
-                <div id="assets-list" class="space-y-3">
-                    <!-- Assets injected here -->
-                </div>
-            </section>
-            <section class="space-y-6">
-                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Liabilities</h4>
-                <div id="liabilities-list" class="space-y-3">
-                    <!-- Liabilities injected here -->
-                </div>
-            </section>
+            <section class="space-y-6"><h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Assets</h4><div id="assets-list" class="space-y-3"></div></section>
+            <section class="space-y-6"><h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Liabilities</h4><div id="liabilities-list" class="space-y-3"></div></section>
         </div>
     </div>
   </div>
 
-  <!-- Modals (Add, Edit, Import) -->
   <dialog id="add-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
       <form action="/api/accounts" method="POST" class="space-y-8">
-        <header class="space-y-2 text-center">
-          <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Item</h3>
-        </header>
+        <header class="space-y-2 text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Item</h3></header>
         <div class="space-y-4">
           <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Name" />
-          <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none">
-            <option value="asset">Asset</option>
-            <option value="liability">Liability</option>
-          </select>
+          <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"><option value="asset">Asset</option><option value="liability">Liability</option></select>
           <select name="category" id="category-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"></select>
           <input type="number" step="0.01" name="balance" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Initial Value" />
         </div>
@@ -221,9 +166,7 @@ const latestMilestone = milestoneData[milestoneData.length - 1] || {
 
     <dialog id="edit-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
       <div class="space-y-8">
-        <header class="space-y-2 text-center">
-          <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Edit Item</h3>
-        </header>
+        <header class="space-y-2 text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Edit Item</h3></header>
         <form id="edit-item-form" class="space-y-4">
           <input type="hidden" name="id" id="edit-id" />
           <input type="text" name="name" id="edit-name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" />
@@ -249,9 +192,7 @@ const latestMilestone = milestoneData[milestoneData.length - 1] || {
 
     <dialog id="import-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
         <form id="import-form" class="space-y-6">
-          <header class="text-center">
-              <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Import History</h3>
-          </header>
+          <header class="text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Import History</h3></header>
           <input type="file" name="file" accept=".csv" required class="w-full text-xs" />
           <div class="flex flex-col gap-4">
               <button type="submit" id="import-btn" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest">Process CSV</button>
@@ -268,218 +209,112 @@ const latestMilestone = milestoneData[milestoneData.length - 1] || {
     const milestones = window.ORREN_MILESTONES || [];
     let currentMilestone = milestones[milestones.length - 1];
     let trendChart, allocChart;
+    window.ORREN_CURRENT_ITEM = null;
 
     const categories = {
         asset: ['Cash', 'Investments', 'Property', 'Business Equity'],
         liability: ['Credit Cards', 'Auto Loan', 'Mortgage', 'Student Loan', 'Other']
     };
 
-    // --- RENDER ENGINE ---
+    async function saveSnapshot(id, val, date = null) {
+        const body = new URLSearchParams({ accountId: id, balance: val });
+        if (date) body.append('date', date);
+        await fetch('/api/snapshots', { method: 'POST', body });
+    }
+
     function renderMilestone(m) {
         const idx = milestones.findIndex(ms => ms.date === m.date);
         const prev = idx > 0 ? milestones[idx - 1] : null;
-        
-        // 1. Numbers
         document.getElementById('display-networth').textContent = `$${m.netWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
         document.getElementById('display-date').textContent = `Recorded: ${m.date}`;
-        
         const deltaEl = document.getElementById('display-delta');
         if (prev) {
             const diff = m.netWorth - prev.netWorth;
-            const prefix = diff >= 0 ? '+' : '';
-            deltaEl.textContent = `${prefix}$${diff.toLocaleString()} since last milestone`;
-            deltaEl.className = `text-[10px] font-bold tracking-widest opacity-40 transition-all ${diff >= 0 ? 'text-[#7ea493]' : 'text-[#B18B53]'}`;
-        } else {
-            deltaEl.className = 'opacity-0';
-        }
+            deltaEl.textContent = `${diff >= 0 ? '+' : ''}$${diff.toLocaleString()} since last milestone`;
+            deltaEl.className = `text-[10px] font-bold tracking-widest transition-all ${diff >= 0 ? 'text-[#7ea493]' : 'text-[#B18B53]'}`;
+        } else deltaEl.className = 'opacity-0';
 
-        // 2. Asset/Liability Lists
         const renderList = (id, items, type) => {
-            const container = document.getElementById(id);
-            container.innerHTML = '';
+            const container = document.getElementById(id); container.innerHTML = '';
             items.filter(i => i.type === type).sort((a,b) => b.balance - a.balance).forEach(item => {
                 const perc = type === 'asset' ? Math.round((item.balance / m.totalAssets) * 100) : 0;
                 const div = document.createElement('div');
                 div.className = `group bg-white p-6 border-l-2 relative ${type === 'asset' ? 'border-[#7ea493]' : 'border-[#B18B53]/20'}`;
-                div.innerHTML = `
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-2">
-                                <span class="font-['Cormorant_Garamond'] italic text-lg leading-none">${item.name}</span>
-                                ${perc > 0 ? `<span class="text-[8px] font-bold text-[#7ea493] bg-[#7ea493]/10 px-1.5 py-0.5 rounded">${perc}%</span>` : ''}
-                            </div>
-                            <span class="text-[8px] font-bold uppercase tracking-widest opacity-30">${item.category} • Updated: ${item.lastUpdate}</span>
-                        </div>
-                        <button class="btn-edit-item opacity-40 hover:opacity-100 p-1" data-id="${item.id}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-bold opacity-30">$</span>
-                        <input type="number" value="${item.balance}" data-id="${item.id}" class="input-balance w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent" />
-                    </div>
-                `;
+                div.innerHTML = `<div class=\"flex justify-between items-start mb-4\"><div class=\"space-y-1\"><div class=\"flex items-center gap-2\"><span class=\"font-['Cormorant_Garamond'] italic text-lg leading-none\">${item.name}</span>${perc > 0 ? `<span class=\"text-[8px] font-bold text-[#7ea493] bg-[#7ea493]/10 px-1.5 py-0.5 rounded\">${perc}%</span>` : ''}</div><span class=\"text-[8px] font-bold uppercase tracking-widest opacity-30\">${item.category} • Updated: ${item.lastUpdate}</span></div><button class=\"btn-edit-item opacity-40 hover:opacity-100 p-1\" data-id=\"${item.id}\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7\"/><path d=\"M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z\"/></svg></button></div><div class=\"flex items-center gap-2\"><span class=\"text-[10px] font-bold opacity-30\">$</span><input type=\"number\" value=\"${item.balance}\" data-id=\"${item.id}\" class=\"input-balance w-full font-bold tracking-tighter text-xl focus:outline-none focus:text-[#B18B53] transition-colors bg-transparent\" /></div>`;
                 container.appendChild(div);
             });
         };
+        renderList('assets-list', m.accounts, 'asset'); renderList('liabilities-list', m.accounts, 'liability');
 
-        renderList('assets-list', m.accounts, 'asset');
-        renderList('liabilities-list', m.accounts, 'liability');
-
-        // 3. Allocation Chart & Legend
         const catMap = m.accounts.filter(a => a.type === 'asset').reduce((acc, item) => {
             if (!acc[item.category]) acc[item.category] = { value: 0, items: [] };
-            acc[item.category].value += item.balance;
-            acc[item.category].items.push(item);
+            acc[item.category].value += item.balance; acc[item.category].items.push(item);
             return acc;
         }, {});
-
-        if (allocChart) {
-            allocChart.data.labels = Object.keys(catMap);
-            allocChart.data.datasets[0].data = Object.values(catMap).map(c => c.value);
-            allocChart.update();
-        }
-
-        const legend = document.getElementById('allocation-legend');
-        legend.innerHTML = '';
+        if (allocChart) { allocChart.data.labels = Object.keys(catMap); allocChart.data.datasets[0].data = Object.values(catMap).map(c => c.value); allocChart.update(); }
+        const legend = document.getElementById('allocation-legend'); legend.innerHTML = '';
         Object.entries(catMap).forEach(([cat, data]) => {
-            const div = document.createElement('div');
-            div.className = 'space-y-2';
-            div.innerHTML = `
-                <div class="flex justify-between items-end border-b border-[#1a1a1a]/5 pb-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest">${cat}</span>
-                    <span class="text-[10px] font-bold opacity-40">${Math.round((data.value / m.totalAssets) * 100)}%</span>
-                </div>
-                <div class="space-y-1">
-                    ${data.items.map(i => `<div class="flex justify-between text-[9px] opacity-60"><span>${i.name}</span><span>$${i.balance.toLocaleString()}</span></div>`).join('')}
-                </div>
-            `;
+            const div = document.createElement('div'); div.className = 'space-y-2';
+            div.innerHTML = `<div class=\"flex justify-between items-end border-b border-[#1a1a1a]/5 pb-1\"><span class=\"text-[10px] font-bold uppercase tracking-widest\">${cat}</span><span class=\"text-[10px] font-bold opacity-40\">${Math.round((data.value / m.totalAssets) * 100)}%</span></div><div class=\"space-y-1\">${data.items.map(i => `<div class=\"flex justify-between text-[9px] opacity-60\"><span>${i.name}</span><span>$${i.balance.toLocaleString()}</span></div>`).join('')}</div>`;
             legend.appendChild(div);
         });
-
-        // Re-attach listeners after DOM update
         attachListeners();
     }
 
-    // --- CHARTS ---
     function initCharts() {
         const trendCtx = document.getElementById('trendChart')?.getContext('2d');
         if (trendCtx) {
             trendChart = new Chart(trendCtx, {
                 type: 'line',
-                data: {
-                    labels: milestones.map(ms => ms.date),
-                    datasets: [{
-                        data: milestones.map(ms => ms.netWorth),
-                        borderColor: '#1a1a1a',
-                        backgroundColor: 'rgba(26,26,26,0.05)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#1a1a1a'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { display: false },
-                        x: { ticks: { font: { size: 9 }, color: '#1a1a1a' }, grid: { display: false } }
-                    }
-                }
+                data: { labels: milestones.map(ms => ms.date), datasets: [{ data: milestones.map(ms => ms.netWorth), borderColor: '#1a1a1a', backgroundColor: 'rgba(26,26,26,0.05)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#1a1a1a' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { font: { size: 9 }, color: '#1a1a1a' }, grid: { display: false } } } }
             });
         }
-
         const allocCtx = document.getElementById('allocationChart')?.getContext('2d');
-        if (allocCtx) {
-            allocChart = new Chart(allocCtx, {
-                type: 'doughnut',
-                data: { labels: [], datasets: [{ data: [], backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493', '#f2efeb', '#888'], borderWidth: 0 }] },
-                options: { cutout: '80%', plugins: { legend: { display: false } } }
-            });
-        }
+        if (allocCtx) { allocChart = new Chart(allocCtx, { type: 'doughnut', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493', '#f2efeb', '#888'], borderWidth: 0 }] }, options: { cutout: '80%', plugins: { legend: { display: false } } } }); }
     }
 
-    // --- INTERACTION ---
     function attachListeners() {
-        // Milestone switching
-        document.querySelectorAll('.milestone-btn').forEach(btn => {
-            btn.onclick = () => {
-                const date = btn.dataset.date;
-                currentMilestone = milestones.find(ms => ms.date === date);
-                document.querySelectorAll('.milestone-btn').forEach(b => b.classList.remove('active', 'opacity-100'));
-                document.querySelectorAll('.milestone-btn').forEach(b => b.classList.add('opacity-30'));
-                btn.classList.add('active', 'opacity-100');
-                btn.classList.remove('opacity-30');
-                renderMilestone(currentMilestone);
-            };
-        });
-
-        // Edit button
-        document.querySelectorAll('.btn-edit-item').forEach(btn => {
-            btn.onclick = () => {
-                const id = btn.dataset.id;
-                const item = currentMilestone.accounts.find(a => a.id === id);
-                // Open modal logic (reuse existing from previous version)
-                openEditModal(item);
-            };
-        });
-
-        // Inline balance
-        document.querySelectorAll('.input-balance').forEach(input => {
-            input.onchange = async () => {
-                const body = new URLSearchParams({ accountId: input.dataset.id, balance: input.value, date: currentMilestone.date });
-                await fetch('/api/snapshots', { method: 'POST', body });
-                // We don't reload, we just assume it's saved to the DB.
-                // In a perfect world, we'd update window.ORREN_MILESTONES locally too.
-            };
-        });
+        document.querySelectorAll('.milestone-btn').forEach(btn => { btn.onclick = () => { const date = btn.dataset.date; currentMilestone = milestones.find(ms => ms.date === date); document.querySelectorAll('.milestone-btn').forEach(b => { b.classList.remove('active', 'opacity-100'); b.classList.add('opacity-30'); }); btn.classList.add('active', 'opacity-100'); btn.classList.remove('opacity-30'); renderMilestone(currentMilestone); }; });
+        document.querySelectorAll('.btn-edit-item').forEach(btn => { btn.onclick = () => { const item = currentMilestone.accounts.find(a => a.id === btn.dataset.id); window.ORREN_CURRENT_ITEM = item; openEditModal(item); }; });
+        document.querySelectorAll('.input-balance').forEach(input => { input.onchange = () => saveSnapshot(input.dataset.id, input.value, currentMilestone.date); });
     }
 
     function openEditModal(item) {
-        document.getElementById('edit-id').value = item.id;
-        document.getElementById('edit-name').value = item.name;
-        const editCat = document.getElementById('edit-category');
-        editCat.innerHTML = '';
-        categories[item.type].forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat; opt.textContent = cat;
-            if (cat === item.category) opt.selected = true;
-            editCat.appendChild(opt);
-        });
-
-        // Find full history for this item
+        document.getElementById('edit-id').value = item.id; document.getElementById('edit-name').value = item.name;
+        const editCat = document.getElementById('edit-category'); editCat.innerHTML = '';
+        categories[item.type].forEach(cat => { const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat; if (cat === item.category) opt.selected = true; editCat.appendChild(opt); });
         const snapshots = (milestones || []).flatMap(m => m.accounts.filter(a => a.id === item.id).map(a => ({ snapshot_date: m.date, balance: a.balance })));
-        const list = document.getElementById('snapshot-list');
-        list.innerHTML = '';
+        const list = document.getElementById('snapshot-list'); list.innerHTML = '';
         snapshots.sort((a,b) => new Date(b.snapshot_date).getTime() - new Date(a.snapshot_date).getTime()).forEach(snap => {
-            const div = document.createElement('div');
-            div.className = 'flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-[10px]';
-            div.innerHTML = `<span>${snap.snapshot_date}</span><input type="number" value="${snap.balance}" class="snap-input w-16 font-bold text-right" data-date="${snap.snapshot_date}">`;
+            const div = document.createElement('div'); div.className = 'flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-[10px]';
+            div.innerHTML = `<span>${snap.snapshot_date}</span><input type=\"number\" value=\"${snap.balance}\" class=\"snap-input w-16 font-bold text-right\" data-date=\"${snap.snapshot_date}\">`;
             list.appendChild(div);
         });
+        list.querySelectorAll('.snap-input').forEach(input => { input.onchange = () => saveSnapshot(item.id, input.value, input.dataset.date); });
         document.getElementById('edit-modal').showModal();
     }
 
-    // Modal helpers
     document.getElementById('btn-open-import')?.addEventListener('click', () => document.getElementById('import-modal').showModal());
     document.getElementById('btn-open-add')?.addEventListener('click', () => document.getElementById('add-modal').showModal());
     document.querySelectorAll('.btn-close-modal').forEach(btn => btn.onclick = () => btn.closest('dialog').close());
+    document.getElementById('btn-add-past')?.addEventListener('click', async () => { const date = document.getElementById('past-date').value; const bal = document.getElementById('past-balance').value; if (!date || !bal || !window.ORREN_CURRENT_ITEM) return alert('Data missing'); await saveSnapshot(window.ORREN_CURRENT_ITEM.id, bal, date); location.reload(); });
+    document.getElementById('btn-delete-item')?.addEventListener('click', async () => { if (!window.ORREN_CURRENT_ITEM || !confirm('Delete item?')) return; const res = await fetch(`/api/accounts?id=${window.ORREN_CURRENT_ITEM.id}`, { method: 'DELETE' }); if (res.ok) location.reload(); });
 
-    initCharts();
-    renderMilestone(currentMilestone);
-    
-    // Auto-scroll to end of milestones
-    const nav = document.querySelector('nav');
-    nav.scrollLeft = nav.scrollWidth;
+    const typeSelect = document.getElementById('type-select'); const catSelect = document.getElementById('category-select');
+    const updateCats = () => { catSelect.innerHTML = ''; categories[typeSelect.value].forEach(cat => { const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat; catSelect.appendChild(opt); }); };
+    typeSelect?.addEventListener('change', updateCats); updateCats();
+
+    initCharts(); renderMilestone(currentMilestone);
+    const nav = document.querySelector('nav'); nav.scrollLeft = nav.scrollWidth;
   });
 </script>
 
 <style>
   dialog::backdrop { background: rgba(26, 26, 26, 0.2); backdrop-filter: blur(4px); }
-  input[type="number"]::-webkit-inner-spin-button { display: none; }
+  input[type=\"number\"]::-webkit-inner-spin-button { display: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .milestone-btn.active { opacity: 1 !important; }
+  .snap-input { border: none; background: transparent; outline: none; }
 </style>
