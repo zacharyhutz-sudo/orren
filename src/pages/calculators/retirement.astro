@@ -74,14 +74,19 @@ const investmentAccounts = (accountsData || []).map(acc => {
                             <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Retirement Age</label>
                             <input type="number" id="retire-age" value="65" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
                         </div>
-                        <div class="space-y-2">
-                            <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Est. Return (%)</label>
-                            <input type="number" id="global-rate" value="8" step="0.1" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                        
+                        <!-- These hide in advanced mode -->
+                        <div id="simple-logic-inputs" class="space-y-4">
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Est. Return (%)</label>
+                                <input type="number" id="global-rate" value="8" step="0.1" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Monthly Contribution ($)</label>
+                                <input type="number" id="global-monthly" value="2000" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                            </div>
                         </div>
-                        <div class="space-y-2">
-                            <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Monthly Contribution ($)</label>
-                            <input type="number" id="global-monthly" value="2000" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
-                        </div>
+
                         <div class="space-y-2">
                             <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Withdrawal Rate (%)</label>
                             <input type="number" id="swr" value="4" step="0.1" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
@@ -99,10 +104,14 @@ const investmentAccounts = (accountsData || []).map(acc => {
 
             <!-- Results -->
             <div class="lg:col-span-2 space-y-12">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div class="bg-white/5 p-8 border border-white/5 space-y-2">
                         <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">Monthly Income</span>
                         <h3 id="monthly-income" class="text-4xl font-bold tracking-tighter text-[#B18B53]">$0.00</h3>
+                    </div>
+                    <div class="bg-white/5 p-8 border border-white/5 space-y-2">
+                        <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">Yearly Income</span>
+                        <h3 id="yearly-income" class="text-4xl font-bold tracking-tighter text-[#B18B53]">$0.00</h3>
                     </div>
                     <div class="bg-white/5 p-8 border border-white/5 space-y-2">
                         <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">Portfolio at Retirement</span>
@@ -258,6 +267,7 @@ const investmentAccounts = (accountsData || []).map(acc => {
             const monthlyWithdrawal = annualWithdrawal / 12;
 
             document.getElementById('monthly-income').textContent = `$${monthlyWithdrawal.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            document.getElementById('yearly-income').textContent = `$${annualWithdrawal.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
             document.getElementById('total-portfolio').textContent = `$${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
             document.getElementById('years-to-go').textContent = `${years} Years to go`;
 
@@ -299,18 +309,18 @@ const investmentAccounts = (accountsData || []).map(acc => {
         document.getElementById('toggle-advanced').onclick = () => {
             isAdvanced = !isAdvanced;
             const btn = document.getElementById('toggle-advanced');
-            const simple = document.getElementById('simple-inputs');
+            const simpleLogic = document.getElementById('simple-logic-inputs');
             const adv = document.getElementById('advanced-table-container');
             
             if (isAdvanced) {
                 btn.textContent = 'Simple Mode';
                 btn.classList.add('bg-[#B18B53]', 'text-white', 'border-transparent');
-                simple.classList.add('opacity-30', 'pointer-events-none');
+                simpleLogic.classList.add('hidden');
                 adv.classList.remove('hidden');
             } else {
                 btn.textContent = 'Advanced Mode';
                 btn.classList.remove('bg-[#B18B53]', 'text-white', 'border-transparent');
-                simple.classList.remove('opacity-30', 'pointer-events-none');
+                simpleLogic.classList.remove('hidden');
                 adv.classList.add('hidden');
             }
             calculate();
