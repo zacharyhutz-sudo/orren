@@ -93,7 +93,7 @@ const latestMilestone = milestoneData[milestoneData.length - 1] || {
     <nav class="sticky top-0 z-50 bg-[#f2efeb]/80 backdrop-blur-md border-b border-[#1a1a1a]/5 overflow-x-auto no-scrollbar">
         <div class="flex px-6 py-4 gap-8 min-w-max mx-auto max-w-2xl">
             {milestoneData.map((m, i) => {
-                const dateObj = new Date(m.date + 'T00:00:00');
+                const dateObj = new Date(m.date + 'T12:00:00');
                 const month = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
                 const day = dateObj.toLocaleDateString('en-US', { day: '2-digit' });
                 const isLast = i === milestoneData.length - 1;
