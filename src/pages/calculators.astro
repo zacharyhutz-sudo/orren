@@ -3,6 +3,14 @@ import Layout from '../layouts/Layout.astro';
 
 const calculators = [
     {
+        title: "My Retirement",
+        description: "The ultimate freedom engine. Connect your actual accounts to project your future monthly income.",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`,
+        link: "/calculators/retirement",
+        tag: "Premium",
+        dark: true
+    },
+    {
         title: "Compound Interest",
         description: "Visualize how your investments grow over time with the power of compounding.",
         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
@@ -42,18 +50,18 @@ const calculators = [
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       {calculators.map(calc => (
-        <a href={calc.link} class="group bg-white p-8 border border-[#1a1a1a]/5 hover:border-[#B18B53]/20 transition-all space-y-6">
+        <a href={calc.link} class={`group p-8 border transition-all space-y-6 ${calc.dark ? 'bg-[#1a1a1a] text-white border-white/5 md:col-span-2' : 'bg-white border-[#1a1a1a]/5 hover:border-[#B18B53]/20'}`}>
           <div class="flex justify-between items-start">
-            <div class="p-3 bg-[#f2efeb] group-hover:bg-[#B18B53]/10 text-[#1a1a1a] group-hover:text-[#B18B53] transition-colors" set:html={calc.icon}></div>
-            <span class="text-[8px] font-bold uppercase tracking-widest opacity-30 group-hover:opacity-100 group-hover:text-[#B18B53] transition-all">{calc.tag}</span>
+            <div class={`p-3 transition-colors ${calc.dark ? 'bg-white/5 text-[#B18B53]' : 'bg-[#f2efeb] group-hover:bg-[#B18B53]/10 text-[#1a1a1a] group-hover:text-[#B18B53]'}`} set:html={calc.icon}></div>
+            <span class={`text-[8px] font-bold uppercase tracking-widest transition-all ${calc.dark ? 'opacity-40 text-[#B18B53]' : 'opacity-30 group-hover:opacity-100 group-hover:text-[#B18B53]'}`}>{calc.tag}</span>
           </div>
           
           <div class="space-y-2">
-            <h3 class="text-2xl font-['Cormorant_Garamond'] italic tracking-tighter">{calc.title}</h3>
-            <p class="text-[11px] leading-relaxed opacity-60 font-medium">{calc.description}</p>
+            <h3 class={`text-2xl font-['Cormorant_Garamond'] italic tracking-tighter ${calc.dark ? 'text-white' : ''}`}>{calc.title}</h3>
+            <p class={`text-[11px] leading-relaxed font-medium ${calc.dark ? 'opacity-60' : 'opacity-60'}`}>{calc.description}</p>
           </div>
           
-          <div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+          <div class={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all -translate-x-2 group-hover:translate-x-0 ${calc.dark ? 'text-[#B18B53]' : 'opacity-0 group-hover:opacity-100'}`}>
             Open Tool
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </div>

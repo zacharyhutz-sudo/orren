@@ -1,0 +1,331 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from '../../lib/supabase';
+
+const accessToken = Astro.cookies.get("sb-access-token")?.value;
+const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+
+if (!accessToken || !refreshToken) {
+  return Astro.redirect("/signin");
+}
+
+const { data: authData, error: authError } = await supabase.auth.setSession({
+  access_token: accessToken,
+  refresh_token: refreshToken,
+});
+
+if (authError || !authData.user) {
+  return Astro.redirect("/signin");
+}
+
+// Fetch accounts and their latest snapshots
+const { data: accountsData, error: accountsError } = await supabase
+  .from('accounts')
+  .select(`
+    *,
+    account_snapshots (
+      balance,
+      snapshot_date
+    )
+  `)
+  .eq('user_id', authData.user.id);
+
+if (accountsError) console.error(accountsError);
+
+const investmentAccounts = (accountsData || []).map(acc => {
+    const latestSnap = acc.account_snapshots.sort((a: any, b: any) => new Date(b.snapshot_date).getTime() - new Date(a.snapshot_date).getTime())[0];
+    return {
+        id: acc.id,
+        name: acc.name,
+        category: acc.category,
+        type: acc.type,
+        currentBalance: latestSnap ? Number(latestSnap.balance) : 0
+    };
+});
+---
+
+<Layout title="My Retirement">
+  <script is:inline define:vars={{ investmentAccounts }}>
+    window.ORREN_ACCOUNTS = investmentAccounts;
+  </script>
+
+  <div class="bg-[#1a1a1a] min-h-screen text-white">
+    <div class="px-6 py-12 max-w-4xl mx-auto space-y-12">
+        <header class="space-y-2">
+            <a href="/calculators" class="text-[10px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 flex items-center gap-2 mb-4 text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                Back to Tools
+            </a>
+            <h2 class="text-6xl font-['Cormorant_Garamond'] italic tracking-tighter text-[#B18B53]">My Retirement</h2>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Personalized Financial Freedom Projection</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            <!-- Controls -->
+            <div class="lg:col-span-1 space-y-8">
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Global Assumptions</h4>
+                        <button id="toggle-advanced" class="text-[8px] font-bold uppercase tracking-widest border border-white/10 px-3 py-1 hover:bg-white hover:text-[#1a1a1a] transition-all">Advanced Mode</button>
+                    </div>
+                    
+                    <div id="simple-inputs" class="space-y-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Retirement Age</label>
+                            <input type="number" id="retire-age" value="65" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Est. Return (%)</label>
+                            <input type="number" id="global-rate" value="8" step="0.1" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Monthly Contribution ($)</label>
+                            <input type="number" id="global-monthly" value="2000" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold opacity-40 uppercase tracking-widest">Withdrawal Rate (%)</label>
+                            <input type="number" id="swr" value="4" step="0.1" class="w-full bg-white/5 border border-white/10 p-4 text-sm font-bold focus:outline-none focus:border-[#B18B53] transition-colors" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Included Accounts</h4>
+                    <div id="account-selector" class="space-y-2 max-h-60 overflow-y-auto no-scrollbar pr-2">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="lg:col-span-2 space-y-12">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white/5 p-8 border border-white/5 space-y-2">
+                        <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">Monthly Income</span>
+                        <h3 id="monthly-income" class="text-4xl font-bold tracking-tighter text-[#B18B53]">$0.00</h3>
+                    </div>
+                    <div class="bg-white/5 p-8 border border-white/5 space-y-2">
+                        <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">Portfolio at Retirement</span>
+                        <h3 id="total-portfolio" class="text-4xl font-bold tracking-tighter">$0.00</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white/5 p-8 border border-white/5 space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Growth Projection</h4>
+                        <span id="years-to-go" class="text-[8px] font-bold uppercase tracking-widest opacity-40">30 Years to go</span>
+                    </div>
+                    <div class="h-80 w-full">
+                        <canvas id="retirementChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Advanced Table (Hidden by default) -->
+                <div id="advanced-table-container" class="hidden space-y-6 bg-white/5 p-8 border border-[#B18B53]/20">
+                    <h4 class="text-[10px] font-bold uppercase tracking-widest text-[#B18B53]">Advanced Account Breakdown</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-[10px] font-bold uppercase tracking-tighter">
+                            <thead class="opacity-40">
+                                <tr>
+                                    <th class="pb-4">Account</th>
+                                    <th class="pb-4">Rate (%)</th>
+                                    <th class="pb-4">Monthly ($)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="advanced-rows" class="divide-y divide-white/5">
+                                <!-- Rows injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+</Layout>
+
+<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+        const accounts = window.ORREN_ACCOUNTS || [];
+        const selector = document.getElementById('account-selector');
+        const advancedRows = document.getElementById('advanced-rows');
+        const ctx = document.getElementById('retirementChart').getContext('2d');
+        let isAdvanced = false;
+        let chart;
+
+        // User Data State
+        const accountStates = accounts.map(acc => ({
+            ...acc,
+            included: acc.category === 'Investments',
+            rate: 8.0,
+            monthly: 0
+        }));
+
+        // Initialize UI
+        function initUI() {
+            selector.innerHTML = '';
+            advancedRows.innerHTML = '';
+
+            accountStates.forEach((acc, i) => {
+                // Selector checkboxed
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center p-3 bg-white/5 border border-white/5 hover:border-[#B18B53]/20 transition-all cursor-pointer';
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" ${acc.included ? 'checked' : ''} data-index="${i}" class="acc-check accent-[#B18B53]" />
+                        <div class="space-y-0.5">
+                            <p class="text-[10px] font-bold uppercase tracking-tight">${acc.name}</p>
+                            <p class="text-[8px] opacity-40 uppercase tracking-widest">$${acc.currentBalance.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+                div.onclick = (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = div.querySelector('input');
+                        cb.checked = !cb.checked;
+                        accountStates[i].included = cb.checked;
+                        calculate();
+                    }
+                };
+                div.querySelector('input').onchange = (e) => {
+                    accountStates[i].included = e.target.checked;
+                    calculate();
+                };
+                selector.appendChild(div);
+
+                // Advanced Rows
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-4 opacity-60">${acc.name}</td>
+                    <td class="py-4"><input type="number" step="0.1" value="${acc.rate}" data-index="${i}" class="acc-rate bg-white/5 border border-white/10 p-1 w-12 focus:outline-none focus:border-[#B18B53]" /></td>
+                    <td class="py-4"><input type="number" value="${acc.monthly}" data-index="${i}" class="acc-monthly bg-white/5 border border-white/10 p-1 w-20 focus:outline-none focus:border-[#B18B53]" /></td>
+                `;
+                advancedRows.appendChild(tr);
+            });
+
+            document.querySelectorAll('.acc-rate').forEach(inp => inp.oninput = (e) => {
+                accountStates[e.target.dataset.index].rate = parseFloat(e.target.value) || 0;
+                calculate();
+            });
+            document.querySelectorAll('.acc-monthly').forEach(inp => inp.oninput = (e) => {
+                accountStates[e.target.dataset.index].monthly = parseFloat(e.target.value) || 0;
+                calculate();
+            });
+        }
+
+        function calculate() {
+            const retireAge = parseInt(document.getElementById('retire-age').value) || 65;
+            const globalRate = (parseFloat(document.getElementById('global-rate').value) || 0) / 100 / 12;
+            const globalMonthly = parseFloat(document.getElementById('global-monthly').value) || 0;
+            const swr = (parseFloat(document.getElementById('swr').value) || 0) / 100;
+            const currentAge = 25; // Default for now
+            const years = retireAge - currentAge;
+            const months = years * 12;
+
+            if (years <= 0) return;
+
+            const labels = [];
+            const data = [];
+            
+            // Total calculation loop
+            let totalPortfolio = 0;
+            const activeAccounts = accountStates.filter(a => a.included);
+            
+            // Starting principal
+            let currentBalances = activeAccounts.map(a => a.currentBalance);
+            
+            for (let m = 0; m <= months; m++) {
+                let monthlyTotal = 0;
+                for (let i = 0; i < activeAccounts.length; i++) {
+                    const acc = activeAccounts[i];
+                    if (m > 0) {
+                        const r = isAdvanced ? (acc.rate / 100 / 12) : globalRate;
+                        const contrib = isAdvanced ? acc.monthly : (globalMonthly / activeAccounts.length);
+                        currentBalances[i] = (currentBalances[i] + contrib) * (1 + r);
+                    }
+                    monthlyTotal += currentBalances[i];
+                }
+                
+                if (m % 12 === 0) {
+                    labels.push(`Age ${currentAge + (m/12)}`);
+                    data.push(monthlyTotal);
+                }
+                totalPortfolio = monthlyTotal;
+            }
+
+            const annualWithdrawal = totalPortfolio * swr;
+            const monthlyWithdrawal = annualWithdrawal / 12;
+
+            document.getElementById('monthly-income').textContent = `$${monthlyWithdrawal.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            document.getElementById('total-portfolio').textContent = `$${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            document.getElementById('years-to-go').textContent = `${years} Years to go`;
+
+            updateChart(labels, data);
+        }
+
+        function updateChart(labels, data) {
+            if (chart) {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = data;
+                chart.update();
+            } else {
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            borderColor: '#B18B53',
+                            backgroundColor: 'rgba(177, 139, 83, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 9 } } },
+                            x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 9 } } }
+                        }
+                    }
+                });
+            }
+        }
+
+        document.getElementById('toggle-advanced').onclick = () => {
+            isAdvanced = !isAdvanced;
+            const btn = document.getElementById('toggle-advanced');
+            const simple = document.getElementById('simple-inputs');
+            const adv = document.getElementById('advanced-table-container');
+            
+            if (isAdvanced) {
+                btn.textContent = 'Simple Mode';
+                btn.classList.add('bg-[#B18B53]', 'text-white', 'border-transparent');
+                simple.classList.add('opacity-30', 'pointer-events-none');
+                adv.classList.remove('hidden');
+            } else {
+                btn.textContent = 'Advanced Mode';
+                btn.classList.remove('bg-[#B18B53]', 'text-white', 'border-transparent');
+                simple.classList.remove('opacity-30', 'pointer-events-none');
+                adv.classList.add('hidden');
+            }
+            calculate();
+        };
+
+        ['retire-age', 'global-rate', 'global-monthly', 'swr'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calculate);
+        });
+
+        initUI();
+        calculate();
+    });
+</script>
+
+<style>
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
