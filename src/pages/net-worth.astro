@@ -172,7 +172,7 @@ const syncAccounts = (accounts || []).map(acc => {
               </div>
               <div class="space-y-2">
                 <label class="text-[8px] font-bold uppercase tracking-widest opacity-40">Milestone Date</label>
-                <input type="date" id="sync-date" class="w-full bg-white p-3 text-xs font-bold focus:outline-none border border-[#1a1a1a]/5" />
+                <input type="date" id="sync-date" class="w-full bg-white p-3 text-base font-bold focus:outline-none border border-[#1a1a1a]/5" />
               </div>
           </header>
           
@@ -194,10 +194,10 @@ const syncAccounts = (accounts || []).map(acc => {
       <form action="/api/accounts" method="POST" class="space-y-8">
         <header class="space-y-2 text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Item</h3></header>
         <div class="space-y-4">
-          <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Name" />
-          <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"><option value="asset">Asset</option><option value="liability">Liability</option></select>
-          <select name="category" id="category-select" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"></select>
-          <input type="number" step="0.01" name="balance" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" placeholder="Initial Value" />
+          <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none" placeholder="Name" />
+          <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none"><option value="asset">Asset</option><option value="liability">Liability</option></select>
+          <select name="category" id="category-select" class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none"></select>
+          <input type="number" step="0.01" name="balance" required class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none" placeholder="Initial Value" />
         </div>
         <div class="flex flex-col gap-4">
           <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Add Item</button>
@@ -211,8 +211,8 @@ const syncAccounts = (accounts || []).map(acc => {
         <header class="space-y-2 text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Edit Item</h3></header>
         <form id="edit-item-form" class="space-y-4">
           <input type="hidden" name="id" id="edit-id" />
-          <input type="text" name="name" id="edit-name" required class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none" />
-          <select name="category" id="edit-category" class="w-full bg-[#f2efeb] p-4 text-sm focus:outline-none"></select>
+          <input type="text" name="name" id="edit-name" required class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none" />
+          <select name="category" id="edit-category" class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none"></select>
           <button type="submit" class="w-full bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save Details</button>
         </form>
         <div class="pt-8 border-t border-[#1a1a1a]/5 space-y-4">
@@ -221,8 +221,8 @@ const syncAccounts = (accounts || []).map(acc => {
           <div class="p-4 bg-[#f2efeb] space-y-2">
             <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">Add Past Balance</p>
             <div class="flex gap-2">
-              <input type="date" id="past-date" class="bg-white p-2 text-[10px] focus:outline-none flex-1" />
-              <input type="number" id="past-balance" placeholder="0.00" class="bg-white p-2 text-[10px] focus:outline-none w-20" />
+              <input type="date" id="past-date" class="bg-white p-2 text-base focus:outline-none flex-1" />
+              <input type="number" id="past-balance" placeholder="0.00" class="bg-white p-2 text-base focus:outline-none w-20" />
               <button id="btn-add-past" class="bg-[#1a1a1a] text-white px-3 text-[10px] hover:bg-[#B18B53]">Add</button>
             </div>
           </div>
@@ -361,7 +361,7 @@ const syncAccounts = (accounts || []).map(acc => {
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[10px] opacity-20">$</span>
-                    <input type="number" step="0.01" value="${acc.latestBalance}" data-id="${acc.id}" class="sync-input bg-white border border-[#1a1a1a]/5 p-2 text-right text-xs font-bold w-28 focus:outline-none focus:border-[#B18B53] transition-colors" />
+                    <input type="number" step="0.01" value="${acc.latestBalance}" data-id="${acc.id}" class="sync-input bg-white border border-[#1a1a1a]/5 p-2 text-right text-base font-bold w-28 focus:outline-none focus:border-[#B18B53] transition-colors" />
                 </div>
             `;
             list.appendChild(div);

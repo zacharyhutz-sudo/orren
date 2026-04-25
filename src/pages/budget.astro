@@ -90,6 +90,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
 <Layout title="Budget">
   <script is:inline define:vars={{ categories, currentMonthStr }}>
     window.BUDGET_CATEGORIES = categories;
+    window.CURRENT_MONTH_STR = currentMonthStr;
   </script>
 
   <div class="px-6 py-12 max-w-2xl mx-auto space-y-12">
@@ -125,7 +126,9 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         
         <div class="text-center space-y-2">
             <span class="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Remaining</span>
-            <h3 class="text-6xl font-bold tracking-tighter ${remaining < 0 ? 'text-[#B18B53]' : ''}">${remaining < 0 ? '' : ''}${remaining.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+            <h3 class={`text-6xl font-bold tracking-tighter ${remaining < 0 ? 'text-[#B18B53]' : ''}`}>
+                {remaining < 0 ? '-$' : '$'}{Math.abs(remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </h3>
             {remaining > 0 && (
                 <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-[#7ea493] opacity-60">
                     Est. ${dailyLeft.toLocaleString(undefined, { maximumFractionDigits: 0 })} / day left
@@ -186,8 +189,8 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                         <p class={`font-bold tracking-tighter ${t.type === 'income' ? 'text-[#7ea493]' : ''}`}>
                             {t.type === 'income' ? '+' : ''}${Number(t.amount).toLocaleString()}
                         </p>
-                        <button class="btn-edit-tx p-1 opacity-0 group-hover:opacity-100 transition-opacity" data-tx={JSON.stringify(t)}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-40 hover:opacity-100"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        <button class="btn-edit-tx p-1 opacity-40 group-hover:opacity-100 transition-opacity" data-tx={JSON.stringify(t)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hover:text-[#B18B53]"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                         </button>
                     </div>
                 </div>
@@ -244,10 +247,10 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                 <div class="flex gap-2 items-center pb-2 border-b border-[#1a1a1a]/5 group">
                     <form action="/api/budget-categories" method="POST" class="flex gap-2 items-center flex-1">
                         <input type="hidden" name="id" value={cat.id} />
-                        <input type="text" name="name" value={cat.name} class="text-[10px] font-bold uppercase tracking-widest bg-transparent focus:outline-none flex-1" />
+                        <input type="text" name="name" value={cat.name} class="text-base font-bold uppercase tracking-widest bg-transparent focus:outline-none flex-1" />
                         <div class="flex items-center gap-1 bg-[#f2efeb] px-2 py-1">
                             <span class="text-[9px] opacity-30">$</span>
-                            <input type="number" name="limit" value={cat.monthly_limit} class="w-16 bg-transparent text-[10px] font-bold focus:outline-none" />
+                            <input type="number" name="limit" value={cat.monthly_limit} class="w-16 bg-transparent text-base font-bold focus:outline-none" />
                         </div>
                         <button type="submit" class="text-[9px] font-bold text-[#B18B53] hover:underline">Save</button>
                     </form>
@@ -260,8 +263,8 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         <form action="/api/budget-categories" method="POST" class="pt-4 space-y-4">
             <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">New Category</p>
             <div class="flex gap-2">
-                <input type="text" name="name" placeholder="Name" required class="flex-1 bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
-                <input type="number" name="limit" placeholder="Limit" class="w-20 bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
+                <input type="text" name="name" placeholder="Name" required class="flex-1 bg-[#f2efeb] p-3 text-base focus:outline-none" />
+                <input type="number" name="limit" placeholder="Limit" class="w-20 bg-[#f2efeb] p-3 text-base focus:outline-none" />
             </div>
             <button type="submit" class="w-full bg-[#1a1a1a] text-white py-3 text-[9px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Add Category</button>
         </form>
@@ -283,17 +286,17 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                     <input type="radio" name="type" id="tx-type-income" value="income" class="hidden" /> Income
                 </label>
             </div>
-            <input type="date" name="date" id="tx-date" value={now.toISOString().split('T')[0]} required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
-            <input type="text" name="merchant" id="tx-merchant" placeholder="Merchant / Description" required class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none" />
-            <div class="flex items-center gap-2 bg-[#f2efeb] p-4">
+            <input type="date" name="date" id="tx-date" value={now.toISOString().split('T')[0]} required class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none appearance-none h-[52px]" />
+            <input type="text" name="merchant" id="tx-merchant" placeholder="Merchant / Description" required class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none h-[52px]" />
+            <div class="flex items-center gap-2 bg-[#f2efeb] p-4 h-[52px]">
                 <span class="text-sm opacity-30">$</span>
-                <input type="number" step="0.01" name="amount" id="tx-amount" placeholder="0.00" required class="w-full bg-transparent text-[10px] font-bold focus:outline-none" />
+                <input type="number" step="0.01" name="amount" id="tx-amount" placeholder="0.00" required class="w-full bg-transparent text-base font-bold focus:outline-none" />
             </div>
-            <select name="category_id" id="tx-category" class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none">
+            <select name="category_id" id="tx-category" class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none h-[52px] appearance-none">
                 <option value="">No Category</option>
                 {categories?.map(cat => <option value={cat.id}>{cat.name}</option>)}
             </select>
-            <textarea name="notes" id="tx-notes" placeholder="Optional notes" class="w-full bg-[#f2efeb] p-4 text-[10px] focus:outline-none h-20 resize-none"></textarea>
+            <textarea name="notes" id="tx-notes" placeholder="Optional notes" class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none h-24 resize-none"></textarea>
         </div>
         <div class="flex flex-col gap-4">
             <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save Transaction</button>
@@ -440,10 +443,13 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
             const lastCat = localStorage.getItem('orren_last_cat');
             const lastDate = localStorage.getItem('orren_last_date');
             if (lastCat) catInput.value = lastCat;
-            if (lastDate && lastDate.startsWith(currentMonthStr)) dateInput.value = lastDate;
+            if (lastDate && lastDate.startsWith(window.CURRENT_MONTH_STR)) dateInput.value = lastDate;
             deleteBtn.classList.add('hidden');
         }
         txModal.showModal();
+        
+        // Focus merchant field after modal opens to prevent auto-calendar on date fields
+        setTimeout(() => merchantInput.focus(), 50);
     }
 
     document.getElementById('btn-add-transaction')?.addEventListener('click', () => openTxModal());
