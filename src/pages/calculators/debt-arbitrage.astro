@@ -1,0 +1,386 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Debt Arbitrage Calculator">
+  <div class="px-6 py-12 max-w-4xl mx-auto space-y-12">
+    <header class="space-y-4">
+      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Debt Arbitrage</h2>
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Optimize your payoff strategy & investment potential</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <!-- Inputs Column -->
+      <div class="lg:col-span-2 space-y-10">
+        <!-- Strategy & Settings -->
+        <section class="bg-white border border-[#1a1a1a]/5 p-8 space-y-8">
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Strategy Settings</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Payoff Strategy</label>
+                    <select id="input-strategy" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none appearance-none">
+                        <option value="math">Best Math (Highest APR)</option>
+                        <option value="wins">Quick Wins (Smallest Balance)</option>
+                        <option value="balanced">Balanced (Hybrid)</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Risk Tolerance</label>
+                    <select id="input-risk" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none appearance-none">
+                        <option value="conservative">Conservative</option>
+                        <option value="balanced" selected>Balanced</option>
+                        <option value="aggressive">Aggressive</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Extra Monthly Payment ($)</label>
+                    <input type="number" id="input-extra" value="500" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Lump Sum Payoff ($)</label>
+                    <input type="number" id="input-lump" value="0" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Exp. Invest Return (%)</label>
+                    <input type="number" id="input-return" value="7" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Employer Match?</label>
+                    <div class="flex bg-[#f2efeb] p-1">
+                        <label class="flex-1 text-center py-2 text-[9px] font-bold uppercase tracking-widest cursor-pointer has-[:checked]:bg-white transition-colors">
+                            <input type="radio" name="match" value="yes" checked class="hidden" /> Yes
+                        </label>
+                        <label class="flex-1 text-center py-2 text-[9px] font-bold uppercase tracking-widest cursor-pointer has-[:checked]:bg-white transition-colors">
+                            <input type="radio" name="match" value="no" class="hidden" /> No
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Debt Rows -->
+        <section class="space-y-6">
+            <div class="flex justify-between items-end">
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Debts</h4>
+                <button id="btn-add-debt" class="text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100">+ Add Debt</button>
+            </div>
+            <div id="debt-container" class="space-y-4">
+                <!-- Template for dynamic rows -->
+            </div>
+        </section>
+
+        <!-- Context/Financial Cushion -->
+        <section class="bg-white border border-[#1a1a1a]/5 p-8 space-y-6">
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Financial Context</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Emergency Fund ($)</label>
+                    <input type="number" id="input-efund" value="1000" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Monthly Expenses ($)</label>
+                    <input type="number" id="input-expenses" value="3000" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none" />
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold uppercase tracking-widest opacity-40">Your Age</label>
+                    <input type="number" id="input-age" value="25" class="w-full bg-[#f2efeb] p-4 text-[11px] font-bold focus:outline-none" />
+                </div>
+            </div>
+        </section>
+      </div>
+
+      <!-- Results Column -->
+      <div class="space-y-12">
+        <div id="results-sticky" class="lg:sticky lg:top-32 space-y-8">
+            <div class="bg-[#1a1a1a] text-white p-10 space-y-8">
+                <div class="text-center space-y-2">
+                    <span class="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Debt Free In</span>
+                    <h3 id="res-months" class="text-6xl font-bold tracking-tighter">—</h3>
+                    <p id="res-date" class="text-[9px] font-bold uppercase tracking-[0.2em] opacity-40">—</p>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-6 pt-8 border-t border-white/5">
+                    <div class="space-y-1">
+                        <span class="text-[8px] font-bold uppercase tracking-[0.3em] opacity-40">Interest Saved</span>
+                        <p id="res-interest-saved" class="text-xl font-bold tracking-tighter text-[#7ea493]">—</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="text-[8px] font-bold uppercase tracking-[0.3em] opacity-40">Total Interest Paid</span>
+                        <p id="res-interest-total" class="text-xl font-bold tracking-tighter">—</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plain Language Guidance -->
+            <div id="res-guidance-box" class="bg-white border border-[#1a1a1a]/5 p-8 space-y-4 hidden">
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Recommendation</h4>
+                <p id="res-guidance" class="font-['Cormorant_Garamond'] italic text-2xl leading-tight tracking-tight"></p>
+                <div id="res-warnings" class="space-y-2"></div>
+            </div>
+
+            <button id="btn-calculate" class="w-full bg-[#B18B53] text-white py-5 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">Calculate Plan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Analysis -->
+    <section id="analysis-section" class="hidden space-y-12 pt-12 border-t border-[#1a1a1a]/5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div class="space-y-6">
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Payoff Schedule</h4>
+                <div id="res-schedule" class="space-y-2"></div>
+            </div>
+            <div class="space-y-6">
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Future Potential</h4>
+                <div class="bg-white border border-[#1a1a1a]/5 p-8 space-y-6">
+                    <p class="text-xs opacity-60 leading-relaxed">If you invest your freed-up debt payments ($<span id="res-freed-payment">0</span>/mo) at <span id="res-return-val">7</span>% return after becoming debt-free:</p>
+                    <div class="space-y-4">
+                        <div class="space-y-1">
+                            <span class="text-[8px] font-bold uppercase tracking-[0.3em] opacity-40">Net Worth in 10 Years</span>
+                            <p id="res-nw-10" class="text-3xl font-bold tracking-tighter text-[#B18B53]">—</p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[8px] font-bold uppercase tracking-[0.3em] opacity-40">Net Worth in 20 Years</span>
+                            <p id="res-nw-20" class="text-3xl font-bold tracking-tighter text-[#B18B53]">—</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+  </div>
+</Layout>
+
+<script is:inline>
+    const container = document.getElementById('debt-container');
+    const btnAdd = document.getElementById('btn-add-debt');
+    const btnCalc = document.getElementById('btn-calculate');
+
+    let debts = [
+        { id: Date.now(), name: 'Credit Card', balance: 5000, apr: 24, min: 150 },
+        { id: Date.now() + 1, name: 'Car Loan', balance: 12000, apr: 6.5, min: 350 }
+    ];
+
+    function renderDebts() {
+        container.innerHTML = '';
+        debts.forEach((d, index) => {
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-2 md:grid-cols-5 gap-3 items-end bg-white border border-[#1a1a1a]/5 p-6 relative group';
+            row.innerHTML = `
+                <div class="col-span-2 md:col-span-1 space-y-1">
+                    <label class="text-[8px] font-bold uppercase opacity-30">Name</label>
+                    <input type="text" value="${d.name}" onchange="updateDebt(${index}, 'name', this.value)" class="w-full bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[8px] font-bold uppercase opacity-30">Balance ($)</label>
+                    <input type="number" value="${d.balance}" onchange="updateDebt(${index}, 'balance', this.value)" class="w-full bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[8px] font-bold uppercase opacity-30">APR (%)</label>
+                    <input type="number" value="${d.apr}" onchange="updateDebt(${index}, 'apr', this.value)" class="w-full bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[8px] font-bold uppercase opacity-30">Min Payment ($)</label>
+                    <input type="number" value="${d.min}" onchange="updateDebt(${index}, 'min', this.value)" class="w-full bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="removeDebt(${index})" class="p-3 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </button>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    window.updateDebt = (index, field, value) => {
+        debts[index][field] = field === 'name' ? value : parseFloat(value);
+    };
+
+    window.removeDebt = (index) => {
+        debts.splice(index, 1);
+        renderDebts();
+    };
+
+    btnAdd.onclick = () => {
+        debts.push({ id: Date.now(), name: 'New Debt', balance: 0, apr: 0, min: 0 });
+        renderDebts();
+    };
+
+    function calculate() {
+        const strategy = document.getElementById('input-strategy').value;
+        const extra = parseFloat(document.getElementById('input-extra').value) || 0;
+        const lump = parseFloat(document.getElementById('input-lump').value) || 0;
+        const efund = parseFloat(document.getElementById('input-efund').value) || 0;
+        const expenses = parseFloat(document.getElementById('input-expenses').value) || 0;
+        const hasMatch = document.querySelector('input[name="match"]:checked').value === 'yes';
+        const invReturn = (parseFloat(document.getElementById('input-return').value) || 7) / 100;
+        const risk = document.getElementById('input-risk').value;
+
+        // Validations
+        if (debts.length === 0) return alert('Please add at least one debt.');
+
+        // Simulation Data
+        let activeDebts = JSON.parse(JSON.stringify(debts));
+        let totalInterest = 0;
+        let months = 0;
+        let schedule = [];
+        let warnings = [];
+
+        // Apply Lump Sum first
+        let currentLump = lump;
+        
+        // Sorting strategy
+        const sortDebts = (list) => {
+            if (strategy === 'math') return list.sort((a, b) => b.apr - a.apr);
+            if (strategy === 'wins') return list.sort((a, b) => a.balance - b.balance);
+            if (strategy === 'balanced') {
+                // Balanced: Priority for APR > 15%, then smallest balance
+                return list.sort((a, b) => {
+                    if (a.apr > 15 && b.apr <= 15) return -1;
+                    if (b.apr > 15 && a.apr <= 15) return 1;
+                    return a.balance - b.balance;
+                });
+            }
+            return list;
+        };
+
+        // Baseline (Min payments only for savings calculation)
+        let baselineInterest = 0;
+        let bDebts = JSON.parse(JSON.stringify(debts));
+        for (let m = 0; m < 360; m++) {
+            let active = false;
+            bDebts.forEach(d => {
+                if (d.balance > 0) {
+                    active = true;
+                    let i = d.balance * (d.apr / 100 / 12);
+                    baselineInterest += i;
+                    d.balance = Math.max(0, d.balance + i - d.min);
+                }
+            });
+            if (!active) break;
+        }
+
+        // Main Simulation
+        while (months < 480) { // 40 year max safety
+            activeDebts = sortDebts(activeDebts.filter(d => d.balance > 0));
+            if (activeDebts.length === 0) break;
+
+            months++;
+            let monthlyExtra = extra;
+            
+            // Apply Lump Sum in month 1
+            if (months === 1) monthlyExtra += currentLump;
+
+            // 1. Pay Minimums first
+            activeDebts.forEach(d => {
+                let monthlyI = d.balance * (d.apr / 100 / 12);
+                totalInterest += monthlyI;
+                d.balance += monthlyI;
+                
+                let payment = Math.min(d.balance, d.min);
+                d.balance -= payment;
+                
+                if (d.apr > 20 && months === 1) warnings.push(`Priority: ${d.name} has a dangerously high APR (${d.apr}%).`);
+                if (monthlyI > d.min) warnings.push(`Warning: ${d.name} payment doesn't cover monthly interest.`);
+            });
+
+            // 2. Apply Extra to priority debt
+            if (activeDebts.length > 0 && monthlyExtra > 0) {
+                let priority = activeDebts[0];
+                let extraApplied = Math.min(priority.balance, monthlyExtra);
+                priority.balance -= extraApplied;
+                
+                // If priority paid off, roll remaining extra to next
+                let spillover = monthlyExtra - extraApplied;
+                if (spillover > 0 && activeDebts.length > 1) {
+                    activeDebts[1].balance -= Math.min(activeDebts[1].balance, spillover);
+                }
+            }
+
+            // Record schedule
+            activeDebts.forEach(d => {
+                if (d.balance <= 0 && !schedule.find(s => s.name === d.name)) {
+                    schedule.push({ name: d.name, month: months });
+                }
+            });
+        }
+
+        // Results Display
+        document.getElementById('analysis-section').classList.remove('hidden');
+        document.getElementById('res-guidance-box').classList.remove('hidden');
+        
+        document.getElementById('res-months').textContent = months;
+        const targetDate = new Date();
+        targetDate.setMonth(targetDate.getMonth() + months);
+        document.getElementById('res-date').textContent = targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        document.getElementById('res-interest-total').textContent = `$${Math.round(totalInterest).toLocaleString()}`;
+        document.getElementById('res-interest-saved').textContent = `$${Math.round(Math.max(0, baselineInterest - totalInterest)).toLocaleString()}`;
+
+        // Guidance Logic
+        let mainAdvice = "";
+        let highApr = debts.some(d => d.apr >= 8);
+        let lowApr = debts.every(d => d.apr < 5);
+        let eFundMonths = efund / expenses;
+
+        if (eFundMonths < 1) {
+            mainAdvice = "First, pause extra debt payments and build a 1-month emergency cushion ($" + expenses + ").";
+        } else if (hasMatch) {
+            mainAdvice = "Get your full employer match first, then follow the payoff order below.";
+        } else if (highApr) {
+            mainAdvice = "Prioritize aggressive payoff. Your debt interest is outperforming typical market returns.";
+        } else if (lowApr && risk === 'aggressive') {
+            mainAdvice = "Your debt is very low interest. Consider paying minimums and investing the rest.";
+        } else {
+            mainAdvice = "Stick to the " + strategy + " strategy. You're on a solid path to freedom.";
+        }
+
+        document.getElementById('res-guidance').textContent = mainAdvice;
+        
+        const warningDiv = document.getElementById('res-warnings');
+        warningDiv.innerHTML = '';
+        [...new Set(warnings)].forEach(w => {
+            const p = document.createElement('p');
+            p.className = 'text-[9px] font-bold text-red-400 uppercase tracking-widest';
+            p.textContent = '! ' + w;
+            warningDiv.appendChild(p);
+        });
+
+        // Schedule
+        const schedDiv = document.getElementById('res-schedule');
+        schedDiv.innerHTML = '';
+        schedule.forEach((s, i) => {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center p-4 bg-white border border-[#1a1a1a]/5';
+            div.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-[10px] font-bold opacity-20">${i + 1}</span>
+                    <span class="font-['Cormorant_Garamond'] italic text-lg">${s.name}</span>
+                </div>
+                <span class="text-[10px] font-bold uppercase tracking-widest opacity-40">Month ${s.month}</span>
+            `;
+            schedDiv.appendChild(div);
+        });
+
+        // Net Worth Potential
+        const freedMonthly = debts.reduce((sum, d) => sum + d.min, 0) + extra;
+        document.getElementById('res-freed-payment').textContent = freedMonthly.toLocaleString();
+        document.getElementById('res-return-val').textContent = invReturn * 100;
+
+        const calcFuture = (years) => {
+            let total = 0;
+            const investMonths = (years * 12);
+            for (let i = 0; i < investMonths; i++) {
+                total = (total + freedMonthly) * (1 + invReturn / 12);
+            }
+            return Math.round(total);
+        };
+
+        document.getElementById('res-nw-10').textContent = `$${calcFuture(10).toLocaleString()}`;
+        document.getElementById('res-nw-20').textContent = `$${calcFuture(20).toLocaleString()}`;
+    }
+
+    btnCalc.onclick = calculate;
+    renderDebts();
+</script>
