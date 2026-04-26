@@ -183,9 +183,9 @@ import Layout from '../../layouts/Layout.astro';
                     <label class="text-[8px] font-bold uppercase opacity-30">Min Payment ($)</label>
                     <input type="number" value="${d.min}" onchange="updateDebt(${index}, 'min', this.value)" class="w-full bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
                 </div>
-                <div class="flex justify-end">
-                    <button onclick="removeDebt(${index})" class="p-3 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                <div class="flex justify-end items-center h-full">
+                    <button onclick="removeDebt(${index})" class="p-2 text-red-500 opacity-40 hover:opacity-100 transition-opacity" title="Delete Debt">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                     </button>
                 </div>
             `;
