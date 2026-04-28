@@ -41,15 +41,26 @@ const { data: categories } = await supabase
 
 // Seed starter categories if empty
 if (categories && categories.length === 0) {
-    const starters = ['Groceries', 'Eating Out', 'Gas', 'Housing', 'Utilities', 'Subscriptions', 'Giving', 'Entertainment', 'Savings', 'Miscellaneous'];
-    await supabase.from('budget_categories').insert(starters.map(name => ({ name, user_id: user.id, monthly_limit: 0 })));
+    const starters = [
+        { name: 'Groceries', classification: 'Needs' },
+        { name: 'Housing', classification: 'Needs' },
+        { name: 'Utilities', classification: 'Needs' },
+        { name: 'Gas', classification: 'Needs' },
+        { name: 'Eating Out', classification: 'Wants' },
+        { name: 'Entertainment', classification: 'Wants' },
+        { name: 'Subscriptions', classification: 'Wants' },
+        { name: 'Savings', classification: 'Savings & Investments' },
+        { name: 'Giving', classification: 'Wants' },
+        { name: 'Miscellaneous', classification: 'Wants' }
+    ];
+    await supabase.from('budget_categories').insert(starters.map(s => ({ ...s, user_id: user.id, monthly_limit: 0 })));
     return Astro.redirect("/budget");
 }
 
 // Fetch Transactions for selected month
 const { data: transactions } = await supabase
   .from('transactions')
-  .select('*, budget_categories(name, color)')
+  .select('*, budget_categories(name, color, classification)')
   .eq('user_id', user.id)
   .gte('date', firstDay)
   .lte('date', lastDay)
@@ -77,6 +88,22 @@ const catSpend = (categories || []).map(cat => {
         .reduce((sum, t) => sum + Number(t.amount), 0);
     return { ...cat, actual };
 });
+
+// Classification breakdown
+const classificationTotals = (transactions || [])
+    .filter(t => t.type === 'expense')
+    .reduce((acc, t) => {
+        const cls = t.budget_categories?.classification || 'Wants';
+        acc[cls] = (acc[cls] || 0) + Number(t.amount);
+        return acc;
+    }, {} as Record<string, number>);
+
+const totalExpense = Object.values(classificationTotals).reduce((a, b) => a + b, 0);
+const classificationBreakdown = ['Needs', 'Wants', 'Savings & Investments'].map(cls => ({
+    name: cls,
+    total: classificationTotals[cls] || 0,
+    percent: totalExpense > 0 ? Math.round(((classificationTotals[cls] || 0) / totalExpense) * 100) : 0
+}));
 
 // Daily Budget Math
 const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -143,6 +170,33 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
             </div>
         </div>
     </div>
+
+    <!-- Classification Pie Chart -->
+    <section class="bg-white p-8 border border-[#1a1a1a]/5 space-y-8">
+        <header class="text-center space-y-2">
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Classification</h4>
+            <p class="font-['Cormorant_Garamond'] italic text-2xl">Spending Breakdown</p>
+        </header>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div class="relative aspect-square max-w-[180px] mx-auto w-full">
+                <canvas id="classificationChart"></canvas>
+            </div>
+            <div class="space-y-4">
+                {classificationBreakdown.map((item, i) => (
+                    <div class="flex justify-between items-center border-b border-[#1a1a1a]/5 pb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" style={`background-color: ${['#1a1a1a', '#B18B53', '#7ea493'][i]}`}></div>
+                            <span class="text-[10px] font-bold uppercase tracking-widest opacity-60">{item.name}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[11px] font-bold tracking-tighter block">${item.total.toLocaleString()}</span>
+                            <span class="text-[9px] font-bold opacity-30 uppercase">{item.percent}%</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </section>
 
     <!-- Category Breakdown -->
     <section class="space-y-6">
@@ -242,9 +296,14 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         <div class="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
             {categories?.map(cat => (
                 <div class="flex gap-2 items-center pb-2 border-b border-[#1a1a1a]/5 group">
-                    <form action="/api/budget-categories" method="POST" class="flex gap-2 items-center flex-1">
+                    <form action="/api/budget-categories" method="POST" class="flex flex-wrap gap-2 items-center flex-1">
                         <input type="hidden" name="id" value={cat.id} />
-                        <input type="text" name="name" value={cat.name} class="text-[10px] font-bold uppercase tracking-widest bg-transparent focus:outline-none flex-1" />
+                        <input type="text" name="name" value={cat.name} class="text-[10px] font-bold uppercase tracking-widest bg-transparent focus:outline-none flex-1 min-w-[100px]" />
+                        <select name="classification" class="bg-[#f2efeb] text-[8px] font-bold uppercase p-1 focus:outline-none">
+                            <option value="Needs" selected={cat.classification === 'Needs'}>Needs</option>
+                            <option value="Wants" selected={cat.classification === 'Wants'}>Wants</option>
+                            <option value="Savings & Investments" selected={cat.classification === 'Savings & Investments'}>Savings</option>
+                        </select>
                         <div class="flex items-center gap-1 bg-[#f2efeb] px-2 py-1">
                             <span class="text-[9px] opacity-30">$</span>
                             <input type="number" name="limit" value={cat.monthly_limit} class="w-16 bg-transparent text-[10px] font-bold focus:outline-none" />
@@ -259,9 +318,16 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         </div>
         <form action="/api/budget-categories" method="POST" class="pt-4 space-y-4">
             <p class="text-[8px] font-bold uppercase tracking-widest opacity-40">New Category</p>
-            <div class="flex gap-2">
-                <input type="text" name="name" placeholder="Name" required class="flex-1 bg-[#f2efeb] p-3 text-[16px] focus:outline-none" />
-                <input type="number" name="limit" placeholder="Limit" class="w-20 bg-[#f2efeb] p-3 text-[16px] focus:outline-none" />
+            <div class="space-y-2">
+                <input type="text" name="name" placeholder="Name" required class="w-full bg-[#f2efeb] p-3 text-[16px] focus:outline-none" />
+                <div class="flex gap-2">
+                    <select name="classification" class="flex-1 bg-[#f2efeb] p-3 text-[12px] font-bold uppercase tracking-widest focus:outline-none">
+                        <option value="Needs">Needs</option>
+                        <option value="Wants">Wants</option>
+                        <option value="Savings & Investments">Savings</option>
+                    </select>
+                    <input type="number" name="limit" placeholder="Limit" class="w-24 bg-[#f2efeb] p-3 text-[16px] focus:outline-none" />
+                </div>
             </div>
             <button type="submit" class="w-full bg-[#1a1a1a] text-white py-3 text-[9px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Add Category</button>
         </form>
@@ -304,8 +370,31 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   </dialog>
 </Layout>
 
+<script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-<script is:inline>
+<script is:inline define:vars={{ classificationBreakdown }}>
+    // 1. Classification Pie Chart
+    const ctx = document.getElementById('classificationChart')?.getContext('2d');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: classificationBreakdown.map(b => b.name),
+                datasets: [{
+                    data: classificationBreakdown.map(b => b.total),
+                    backgroundColor: ['#1a1a1a', '#B18B53', '#7ea493'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                cutout: '80%',
+                plugins: { legend: { display: false } },
+                animation: { duration: 2000, easing: 'easeOutQuart' }
+            }
+        });
+    }
+
     // 1. Transaction Filtering
     let filterActive = false;
     document.getElementById('btn-filter-uncategorized')?.addEventListener('click', (e) => {

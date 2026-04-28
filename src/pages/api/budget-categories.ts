@@ -14,13 +14,14 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const formData = await request.formData();
   const name = formData.get("name")?.toString();
   const limit = parseFloat(formData.get("limit")?.toString() || "0");
+  const classification = formData.get("classification")?.toString();
   const id = formData.get("id")?.toString();
 
   if (id) {
     // Update
     const { error } = await supabase
       .from("budget_categories")
-      .update({ name, monthly_limit: limit })
+      .update({ name, monthly_limit: limit, classification })
       .eq("id", id)
       .eq("user_id", user.id);
     if (error) return new Response(error.message, { status: 500 });
@@ -28,7 +29,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     // Create
     const { error } = await supabase
       .from("budget_categories")
-      .insert({ name, monthly_limit: limit, user_id: user.id });
+      .insert({ name, monthly_limit: limit, classification, user_id: user.id });
     if (error) return new Response(error.message, { status: 500 });
   }
 
