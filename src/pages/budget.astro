@@ -270,12 +270,12 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   </dialog>
 
   <!-- Transaction Modal (Handles both Add & Edit) -->
-  <dialog id="transaction-modal" class="bg-white border border-[#1a1a1a]/10 p-6 md:p-10 w-[90vw] md:max-w-sm backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
-      <form action="/api/transactions" method="POST" class="space-y-8">
+  <dialog id="transaction-modal" class="bg-white border border-[#1a1a1a]/10 p-6 md:p-10 w-[92vw] max-w-sm backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm m-auto overflow-hidden">
+      <form action="/api/transactions" method="POST" class="space-y-8 w-full">
         <input type="hidden" name="id" id="form-tx-id" />
         <header class="text-center"><h3 id="form-tx-title" class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">New Transaction</h3></header>
-        <div class="space-y-4">
-            <div class="flex bg-[#f2efeb] p-1">
+        <div class="space-y-4 w-full">
+            <div class="flex bg-[#f2efeb] p-1 w-full">
                 <label class="flex-1 text-center py-2 text-[9px] font-bold uppercase tracking-widest cursor-pointer has-[:checked]:bg-white transition-colors">
                     <input type="radio" name="type" id="tx-type-expense" value="expense" checked class="hidden" /> Expense
                 </label>
@@ -283,17 +283,17 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                     <input type="radio" name="type" id="tx-type-income" value="income" class="hidden" /> Income
                 </label>
             </div>
-            <input type="text" name="merchant" id="tx-merchant" placeholder="Merchant / Description" required autofocus class="w-full bg-[#f2efeb] p-4 text-[16px] focus:outline-none box-border" />
-            <input type="date" name="date" id="tx-date" value={now.toISOString().split('T')[0]} required class="w-full bg-[#f2efeb] p-4 text-[16px] focus:outline-none box-border" />
-            <div class="flex items-center gap-2 bg-[#f2efeb] p-4">
+            <input type="text" name="merchant" id="tx-merchant" placeholder="Merchant / Description" required autofocus class="w-full block bg-[#f2efeb] p-4 text-[16px] focus:outline-none box-border border-none rounded-none" />
+            <input type="date" name="date" id="tx-date" value={now.toISOString().split('T')[0]} required class="w-full block bg-[#f2efeb] p-4 text-[16px] focus:outline-none box-border border-none rounded-none" />
+            <div class="flex items-center gap-2 bg-[#f2efeb] p-4 w-full box-border">
                 <span class="text-sm opacity-30">$</span>
-                <input type="number" step="0.01" name="amount" id="tx-amount" placeholder="0.00" required class="w-full bg-transparent text-[16px] font-bold focus:outline-none" />
+                <input type="number" step="0.01" name="amount" id="tx-amount" placeholder="0.00" required class="flex-1 bg-transparent text-[16px] font-bold focus:outline-none border-none p-0" />
             </div>
-            <select name="category_id" id="tx-category" class="w-full bg-[#f2efeb] p-4 text-[16px] focus:outline-none box-border">
+            <select name="category_id" id="tx-category" class="w-full block bg-[#f2efeb] p-4 text-[16px] focus:outline-none box-border border-none rounded-none appearance-none">
                 <option value="">No Category</option>
                 {categories?.map(cat => <option value={cat.id}>{cat.name}</option>)}
             </select>
-            <textarea name="notes" id="tx-notes" placeholder="Optional notes" class="w-full bg-[#f2efeb] p-4 text-[16px] focus:outline-none h-20 resize-none box-border"></textarea>
+            <textarea name="notes" id="tx-notes" placeholder="Optional notes" class="w-full block bg-[#f2efeb] p-4 text-[16px] focus:outline-none h-20 resize-none box-border border-none rounded-none"></textarea>
         </div>
         <div class="flex flex-col gap-4">
             <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save Transaction</button>
@@ -473,15 +473,35 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
     });
 </script>
 
-<style>
+<style is:global>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .needs-cat { border-left: 2px solid #B18B53 !important; }
     
-    /* Prevent iOS zoom on focus */
+    /* Prevent iOS zoom and fix modal input layout */
     @media screen and (max-width: 768px) {
         input, select, textarea {
             font-size: 16px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            display: block !important;
         }
+
+        /* Specifically target the date input to prevent expansion */
+        input[type="date"] {
+            min-width: 0 !important;
+            max-width: 100% !important;
+            -webkit-appearance: none;
+            position: relative;
+        }
+    }
+
+    dialog::backdrop {
+        background: rgba(26, 26, 26, 0.4);
+        backdrop-filter: blur(4px);
+    }
+
+    dialog {
+        box-sizing: border-box;
     }
 </style>
