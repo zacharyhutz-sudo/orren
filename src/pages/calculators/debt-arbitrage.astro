@@ -262,17 +262,17 @@ import Layout from '../../layouts/Layout.astro';
         }
 
         // Main Simulation
+        const initialTotalMinPayments = debts.reduce((sum, d) => sum + d.min, 0);
+        const totalMonthlyCashflow = initialTotalMinPayments + extra;
+
         while (months < 480) { // 40 year max safety
             activeDebts = sortDebts(activeDebts.filter(d => d.balance > 0));
             if (activeDebts.length === 0) break;
 
             months++;
-            let monthlyExtra = extra;
             
-            // Apply Lump Sum in month 1
-            if (months === 1) monthlyExtra += currentLump;
-
-            // 1. Pay Minimums first
+            // 1. Apply Monthly Interest & Pay Minimums on all active debts
+            let currentTotalMinPayments = 0;
             activeDebts.forEach(d => {
                 let monthlyI = d.balance * (d.apr / 100 / 12);
                 totalInterest += monthlyI;
@@ -280,21 +280,27 @@ import Layout from '../../layouts/Layout.astro';
                 
                 let payment = Math.min(d.balance, d.min);
                 d.balance -= payment;
+                currentTotalMinPayments += d.min; // Track what we are still required to pay
                 
                 if (d.apr > 20 && months === 1) warnings.push(`Priority: ${d.name} has a dangerously high APR (${d.apr}%).`);
                 if (monthlyI > d.min) warnings.push(`Warning: ${d.name} payment doesn't cover monthly interest.`);
             });
 
-            // 2. Apply Extra to priority debt
-            if (activeDebts.length > 0 && monthlyExtra > 0) {
-                let priority = activeDebts[0];
-                let extraApplied = Math.min(priority.balance, monthlyExtra);
-                priority.balance -= extraApplied;
-                
-                // If priority paid off, roll remaining extra to next
-                let spillover = monthlyExtra - extraApplied;
-                if (spillover > 0 && activeDebts.length > 1) {
-                    activeDebts[1].balance -= Math.min(activeDebts[1].balance, spillover);
+            // 2. Rollover: Calculate everything left in the budget
+            // Avalanche/Snowball Amount = Total Budget - Min Payments of remaining active debts
+            let rolloverCashflow = totalMonthlyCashflow - currentTotalMinPayments;
+            
+            // Apply Lump Sum in month 1
+            if (months === 1) rolloverCashflow += lump;
+
+            if (activeDebts.length > 0 && rolloverCashflow > 0) {
+                let priorityIdx = 0;
+                while (rolloverCashflow > 0 && priorityIdx < activeDebts.length) {
+                    let priority = activeDebts[priorityIdx];
+                    let applied = Math.min(priority.balance, rolloverCashflow);
+                    priority.balance -= applied;
+                    rolloverCashflow -= applied;
+                    priorityIdx++;
                 }
             }
 

@@ -398,6 +398,23 @@ const syncAccounts = (accounts || []).map(acc => {
         document.getElementById('edit-modal').showModal();
     }
 
+    document.getElementById('edit-item-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = {
+            id: formData.get('id'),
+            name: formData.get('name'),
+            category: formData.get('category')
+        };
+        const res = await fetch('/api/accounts', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (res.ok) location.reload();
+        else alert('Error updating item');
+    };
+
     document.getElementById('btn-open-add')?.addEventListener('click', () => document.getElementById('add-modal').showModal());
     document.querySelectorAll('.btn-close-modal').forEach(btn => btn.onclick = () => btn.closest('dialog').close());
     document.getElementById('btn-add-past')?.addEventListener('click', async () => { const date = document.getElementById('past-date').value; const bal = document.getElementById('past-balance').value; if (!date || !bal || !window.ORREN_CURRENT_ITEM) return alert('Data missing'); await saveSnapshot(window.ORREN_CURRENT_ITEM.id, bal, date); location.reload(); });

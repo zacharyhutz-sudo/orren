@@ -17,7 +17,28 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return new Response("Invalid transactions data", { status: 400 });
   }
 
-  const transactionsWithUser = transactions.map(t => ({
+  // 1. Fetch existing transactions to check for duplicates
+  // We'll check for matches in merchant, amount, and date for this user
+  const { data: existing } = await supabase
+    .from("transactions")
+    .select("merchant, amount, date")
+    .eq("user_id", user.id);
+
+  const existingMap = new Set(
+    (existing || []).map(t => `${t.date}|${t.merchant}|${Number(t.amount).toFixed(2)}`)
+  );
+
+  // 2. Filter out duplicates
+  const newTransactions = transactions.filter(t => {
+    const key = `${t.date}|${t.merchant}|${Number(t.amount).toFixed(2)}`;
+    return !existingMap.has(key);
+  });
+
+  if (newTransactions.length === 0) {
+    return new Response(JSON.stringify({ success: true, count: 0 }), { status: 200 });
+  }
+
+  const transactionsWithUser = newTransactions.map(t => ({
     ...t,
     user_id: user.id,
     category_id: t.category_id || null,

@@ -59,6 +59,30 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   return redirect("/net-worth");
 };
 
+export const PATCH: APIRoute = async ({ request, cookies }) => {
+  const accessToken = cookies.get("sb-access-token")?.value;
+  const refreshToken = cookies.get("sb-refresh-token")?.value;
+
+  if (!accessToken || !refreshToken) return new Response("Unauthorized", { status: 401 });
+
+  const { data: { user } } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+  if (!user) return new Response("Unauthorized", { status: 401 });
+
+  const body = await request.json();
+  const { id, name, category } = body;
+
+  if (!id) return new Response("ID required", { status: 400 });
+
+  const { error } = await supabase
+    .from("accounts")
+    .update({ name, category })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return new Response(error.message, { status: 500 });
+  return new Response(JSON.stringify({ success: true }), { status: 200 });
+};
+
 export const DELETE: APIRoute = async ({ request, cookies }) => {
   const accessToken = cookies.get("sb-access-token")?.value;
   const refreshToken = cookies.get("sb-refresh-token")?.value;
