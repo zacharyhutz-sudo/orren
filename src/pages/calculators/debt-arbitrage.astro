@@ -2,10 +2,10 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 
-<Layout title="Debt Arbitrage Calculator">
+<Layout title="Debt Payoff vs. Investing">
   <div class="px-6 py-12 max-w-4xl mx-auto space-y-12">
     <header class="space-y-4">
-      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Debt Arbitrage</h2>
+      <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Debt Payoff vs. Investing</h2>
       <p class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Optimize your payoff strategy & investment potential</p>
     </header>
 
@@ -148,6 +148,11 @@ import Layout from '../../layouts/Layout.astro';
             </div>
         </div>
     </section>
+    <!-- Mobile Primary Action -->
+    <button onclick="location.reload()" class="md:hidden fixed bottom-24 right-6 w-32 h-14 bg-[#B18B53] text-white rounded-full shadow-2xl flex items-center justify-center gap-2 z-[60] active:scale-90 transition-transform px-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        <span class="text-[10px] font-bold uppercase tracking-widest">New Scenario</span>
+    </button>
   </div>
 </Layout>
 
@@ -218,7 +223,10 @@ import Layout from '../../layouts/Layout.astro';
         const risk = document.getElementById('input-risk').value;
 
         // Validations
-        if (debts.length === 0) return alert('Please add at least one debt.');
+        if (debts.length === 0) {
+            window.orren.toast('Please add at least one debt.', 'error');
+            return;
+        }
 
         // Simulation Data
         let activeDebts = JSON.parse(JSON.stringify(debts));

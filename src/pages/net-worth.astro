@@ -127,14 +127,14 @@ const syncAccounts = (accounts || []).map(acc => {
         </div>
         <div class="flex flex-col gap-3 md:flex-row md:gap-2 w-full md:w-auto">
             <button id="btn-sync-mode" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#B18B53]/30 bg-[#B18B53]/10 text-[#B18B53] px-8 py-4 md:py-2 hover:bg-[#B18B53] hover:text-white transition-all">
-                Sync Portfolio
+                Update Balances
             </button>
-            <button id="btn-open-add" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">+ Add Item</button>
+            <button id="btn-open-add" class="w-full md:w-auto text-[10px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-8 py-4 md:py-2 bg-[#1a1a1a] text-white hover:bg-black transition-colors">+ Add Account</button>
         </div>
         </header>
 
         <div class="bg-[#1a1a1a] text-white p-12 text-center space-y-4 relative overflow-hidden group">
-            <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Consolidated Wealth</span>
+            <span class="text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">Net Worth</span>
             <div class="space-y-1">
                 <h3 id="display-networth" class="text-6xl font-bold tracking-tighter transition-all duration-500">${latestMilestone.netWorth.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
                 <p id="display-delta" class="text-[10px] font-bold tracking-widest opacity-0 transition-all"></p>
@@ -167,7 +167,7 @@ const syncAccounts = (accounts || []).map(acc => {
       <div class="flex flex-col h-[80vh]">
           <header class="p-8 border-b border-[#1a1a1a]/5 bg-[#f2efeb]/50">
               <div class="flex justify-between items-start mb-6">
-                <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Sync Portfolio</h3>
+                <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Update Balances</h3>
                 <button class="btn-close-modal opacity-40 hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
               </div>
               <div class="space-y-2">
@@ -192,7 +192,7 @@ const syncAccounts = (accounts || []).map(acc => {
   <!-- Existing Modals -->
   <dialog id="add-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
       <form action="/api/accounts" method="POST" class="space-y-8">
-        <header class="space-y-2 text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Item</h3></header>
+        <header class="space-y-2 text-center"><h3 id="add-modal-title" class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Asset</h3></header>
         <div class="space-y-4">
           <input type="text" name="name" required class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none" placeholder="Name" />
           <select name="type" id="type-select" class="w-full bg-[#f2efeb] p-4 text-base focus:outline-none"><option value="asset">Asset</option><option value="liability">Liability</option></select>
@@ -227,10 +227,15 @@ const syncAccounts = (accounts || []).map(acc => {
             </div>
           </div>
         </div>
-        <button id="btn-delete-item" class="w-full text-red-500 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete Entire Item</button>
+        <button id="btn-delete-item" class="w-full text-red-500 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete Entire Account</button>
         <button type="button" class="btn-close-modal w-full text-[10px] font-bold uppercase tracking-widest opacity-40">Close</button>
       </div>
     </dialog>
+
+    <!-- Mobile Primary Action -->
+    <button id="fab-update-balances" class="md:hidden fixed bottom-24 right-6 w-14 h-14 bg-[#B18B53] text-white rounded-full shadow-2xl flex items-center justify-center z-[60] active:scale-90 transition-transform">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+    </button>
 </Layout>
 
 <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -307,6 +312,19 @@ const syncAccounts = (accounts || []).map(acc => {
             });
         };
         renderList('assets-list', m.accounts, 'asset'); renderList('liabilities-list', m.accounts, 'liability');
+
+        if (m.accounts.length === 0) {
+            const assetsList = document.getElementById('assets-list');
+            const liabilitiesList = document.getElementById('liabilities-list');
+            const emptyState = `
+                <div class="py-8 border border-dashed border-[#1a1a1a]/10 text-center space-y-3">
+                    <p class="text-[9px] font-bold uppercase tracking-widest opacity-40">No items yet</p>
+                    <button onclick="document.getElementById('add-modal').showModal()" class="text-[8px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-3 py-1.5 hover:bg-[#f2efeb]">Add My First Account</button>
+                </div>
+            `;
+            assetsList.innerHTML = emptyState;
+            liabilitiesList.innerHTML = emptyState;
+        }
 
         const catMap = m.accounts.filter(a => a.type === 'asset').reduce((acc, item) => {
             if (!acc[item.category]) acc[item.category] = { value: 0, items: [] };
@@ -411,17 +429,45 @@ const syncAccounts = (accounts || []).map(acc => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (res.ok) location.reload();
-        else alert('Error updating item');
+        if (res.ok) {
+            window.orren.toast('Account updated');
+            setTimeout(() => location.reload(), 1000);
+        }
+        else window.orren.toast('Error updating item', 'error');
     };
 
     document.getElementById('btn-open-add')?.addEventListener('click', () => document.getElementById('add-modal').showModal());
+    document.getElementById('fab-update-balances')?.addEventListener('click', () => document.getElementById('btn-sync-mode').click());
     document.querySelectorAll('.btn-close-modal').forEach(btn => btn.onclick = () => btn.closest('dialog').close());
-    document.getElementById('btn-add-past')?.addEventListener('click', async () => { const date = document.getElementById('past-date').value; const bal = document.getElementById('past-balance').value; if (!date || !bal || !window.ORREN_CURRENT_ITEM) return alert('Data missing'); await saveSnapshot(window.ORREN_CURRENT_ITEM.id, bal, date); location.reload(); });
-    document.getElementById('btn-delete-item')?.addEventListener('click', async () => { if (!window.ORREN_CURRENT_ITEM || !confirm('Delete item?')) return; const res = await fetch(`/api/accounts?id=${window.ORREN_CURRENT_ITEM.id}`, { method: 'DELETE' }); if (res.ok) location.reload(); });
+    document.getElementById('btn-add-past')?.addEventListener('click', async () => { 
+        const date = document.getElementById('past-date').value; 
+        const bal = document.getElementById('past-balance').value; 
+        if (!date || !bal || !window.ORREN_CURRENT_ITEM) return window.orren.toast('Data missing', 'error'); 
+        await saveSnapshot(window.ORREN_CURRENT_ITEM.id, bal, date); 
+        window.orren.toast('Historical balance added');
+        location.reload(); 
+    });
+    document.getElementById('btn-delete-item')?.addEventListener('click', async () => { 
+        if (!window.ORREN_CURRENT_ITEM || !window.orren.confirm('Delete this account and all history?')) return; 
+        const res = await fetch(`/api/accounts?id=${window.ORREN_CURRENT_ITEM.id}`, { method: 'DELETE' }); 
+        if (res.ok) {
+            window.orren.toast('Account removed');
+            location.reload(); 
+        }
+    });
 
     const typeSelect = document.getElementById('type-select'); const catSelect = document.getElementById('category-select');
-    const updateCats = () => { catSelect.innerHTML = ''; categories[typeSelect.value].forEach(cat => { const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat; catSelect.appendChild(opt); }); };
+    const titleEl = document.getElementById('add-modal-title');
+    const updateCats = () => { 
+        catSelect.innerHTML = ''; 
+        categories[typeSelect.value].forEach(cat => { 
+            const opt = document.createElement('option'); 
+            opt.value = cat; 
+            opt.textContent = cat; 
+            catSelect.appendChild(opt); 
+        }); 
+        titleEl.textContent = typeSelect.value === 'asset' ? 'Add Asset' : 'Add Debt';
+    };
     typeSelect?.addEventListener('change', updateCats); updateCats();
 
     initCharts(); renderMilestone(currentMilestone);

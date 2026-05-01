@@ -7,6 +7,20 @@ interface Props {
 }
 
 const { title, showNav = true } = Astro.props;
+const currentPath = Astro.url.pathname;
+
+const navItems = [
+  { label: 'Budget', href: '/budget', icon: 'wallet' },
+  { label: 'Worth', href: '/net-worth', icon: 'trending-up' },
+  { label: 'Tools', href: '/calculators', icon: 'calculator' }
+];
+
+function isActive(href: string) {
+  if (href === '/budget' && currentPath === '/budget') return true;
+  if (href === '/net-worth' && currentPath === '/net-worth') return true;
+  if (href === '/calculators' && currentPath.startsWith('/calculators')) return true;
+  return false;
+}
 ---
 
 <!doctype html>
@@ -30,9 +44,13 @@ const { title, showNav = true } = Astro.props;
         <nav class="flex items-center gap-4 md:gap-12">
           <!-- Desktop Menu -->
           <ul class="hidden md:flex gap-12 text-[10px] font-bold uppercase tracking-[0.2em]">
-            <li><a href="/budget" class="opacity-40 hover:opacity-100 transition-opacity">Budget</a></li>
-            <li><a href="/net-worth" class="opacity-40 hover:opacity-100 transition-opacity">Net Worth</a></li>
-            <li><a href="/calculators" class="opacity-40 hover:opacity-100 transition-opacity">Calculators</a></li>
+            {navItems.map(item => (
+              <li>
+                <a href={item.href} class={`transition-opacity ${isActive(item.href) ? 'text-[#B18B53]' : 'opacity-40 hover:opacity-100'}`}>
+                  {item.label === 'Worth' ? 'Net Worth' : item.label}
+                </a>
+              </li>
+            ))}
           </ul>
           
           <div class="hidden md:block h-4 w-px bg-[#1a1a1a]/10"></div>
@@ -52,19 +70,45 @@ const { title, showNav = true } = Astro.props;
     <!-- iOS Style Bottom Navigation (Mobile Only) -->
     {showNav && (
       <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-[#1a1a1a]/5 px-6 py-3 flex justify-around items-center z-50 md:hidden">
-        <a href="/budget" class="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-          <div class="p-1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-          <span class="text-[10px] font-bold uppercase tracking-tighter">Budget</span>
-        </a>
-        <a href="/net-worth" class="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-          <div class="p-1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/></svg></div>
-          <span class="text-[10px] font-bold uppercase tracking-tighter">Worth</span>
-        </a>
-        <a href="/calculators" class="flex flex-col items-center gap-1 opacity-40 hover:opacity-100 transition-opacity">
-          <div class="p-1"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></div>
-          <span class="text-[10px] font-bold uppercase tracking-tighter">Tools</span>
-        </a>
+        {navItems.map(item => (
+          <a href={item.href} class={`flex flex-col items-center gap-1 transition-all ${isActive(item.href) ? 'text-[#B18B53]' : 'opacity-40 hover:opacity-100'}`}>
+            <div class="p-1">
+              {item.icon === 'wallet' && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+              {item.icon === 'trending-up' && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/></svg>}
+              {item.icon === 'calculator' && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>}
+            </div>
+            <span class="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
+          </a>
+        ))}
       </nav>
     )}
+
+    <!-- Toast / Notification Container -->
+    <div id="toast-container" class="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm px-6 pointer-events-none"></div>
+
+    <script is:inline>
+      window.orren = {
+        toast: (message, type = 'info') => {
+          const container = document.getElementById('toast-container');
+          const toast = document.createElement('div');
+          toast.className = `bg-[#1a1a1a] text-white p-4 mb-3 shadow-2xl flex justify-between items-center animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto border-l-4 ${type === 'error' ? 'border-red-500' : 'border-[#B18B53]'}`;
+          toast.innerHTML = `
+            <span class="text-[11px] font-bold uppercase tracking-widest">${message}</span>
+            <button onclick="this.parentElement.remove()" class="opacity-40 hover:opacity-100 ml-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          `;
+          container.appendChild(toast);
+          setTimeout(() => {
+            toast.classList.add('animate-out', 'fade-out', 'slide-out-to-top-4');
+            setTimeout(() => toast.remove(), 300);
+          }, 4000);
+        },
+        confirm: (message) => {
+          // Simplest fallback for now that matches style
+          return window.confirm(message);
+        }
+      };
+    </script>
   </body>
 </html>
