@@ -174,7 +174,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         
         <div class="text-center space-y-2">
             <span class="text-[10px] font-bold uppercase tracking-[0.4em] opacity-40">Remaining</span>
-            <h3 class="text-6xl font-bold tracking-tighter ${remaining < 0 ? 'text-[#B18B53]' : ''}">{remaining < 0 ? '-' : ''}${Math.abs(remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+            <h3 class={["text-6xl font-bold tracking-tighter", remaining < 0 ? "text-[#B18B53]" : ""].join(' ')}>{remaining < 0 ? '-' : ''}${Math.abs(remaining).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
             {remaining > 0 && (
                 <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-[#7ea493] opacity-60">
                     Est. ${dailyLeft.toLocaleString(undefined, { maximumFractionDigits: 0 })} / day left
@@ -242,7 +242,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                         </div>
                     </div>
                     <div class="h-0.5 w-full bg-[#1a1a1a]/5">
-                        <div class={`h-full ${cat.actual > cat.effectiveLimit && cat.effectiveLimit > 0 ? 'bg-red-400' : 'bg-[#B18B53]'}`} style={`width: ${cat.effectiveLimit > 0 ? Math.min(100, (cat.actual / cat.effectiveLimit) * 100) : 0}%`}></div>
+                        <div class={["h-full", cat.actual > cat.effectiveLimit && cat.effectiveLimit > 0 ? "bg-red-400" : "bg-[#B18B53]"].join(' ')} style={`width: ${cat.effectiveLimit > 0 ? Math.min(100, (cat.actual / cat.effectiveLimit) * 100) : 0}%`}></div>
                     </div>
                 </div>
             ))}
@@ -277,14 +277,14 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                 </div>
             )}
             {transactions?.map(t => (
-                <div class={`tx-row flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative ${!t.category_id ? 'needs-cat' : ''}`} data-id={t.id}>
+                <div class={["tx-row flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative", !t.category_id ? "needs-cat" : ""].join(' ')} data-id={t.id}>
                     <div class="flex flex-1 items-center gap-3 min-w-0">
-                        <input type="checkbox" class="tx-check w-3 h-3 accent-[#B18B53] opacity-0 group-hover:opacity-100 has-[:checked]:opacity-100 transition-opacity" />
+                        <input type="checkbox" class="tx-check w-4 h-4 md:w-3 md:h-3 accent-[#B18B53] opacity-100 md:opacity-0 md:group-hover:opacity-100 has-[:checked]:opacity-100 transition-opacity" />
                         <div class="w-1.5 h-1.5 rounded-full bg-[#B18B53] shrink-0 opacity-0 group-[.needs-cat]:opacity-100"></div>
                         <p class="font-bold tracking-tight truncate flex-1">{t.merchant} <span class="text-[9px] font-normal opacity-30 uppercase ml-2">{t.budget_categories?.name || 'Uncategorized'} • {new Date(t.date + 'T12:00:00').toLocaleDateString()}</span></p>
                     </div>
                     <div class="text-right flex items-center gap-4 shrink-0">
-                        <p class={`font-bold tracking-tighter ${t.type === 'income' ? 'text-[#7ea493]' : ''}`}>
+                        <p class={["font-bold tracking-tighter", t.type === 'income' ? "text-[#7ea493]" : ""].join(' ')}>
                             {t.type === 'income' ? '+' : ''}${Number(t.amount).toLocaleString()}
                         </p>
                         <button class="btn-edit-tx p-1 opacity-100 transition-opacity" data-tx={JSON.stringify(t)}>
@@ -307,8 +307,8 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   </div>
 
   <!-- CSV Import Modal -->
-  <dialog id="import-modal" class="p-6 md:p-12 md:max-w-lg">
-    <div class="space-y-8">
+  <dialog id="import-modal" class="md:max-w-lg">
+    <div class="p-6 md:p-12 space-y-8">
         <header class="text-center space-y-2">
             <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Import CSV</h3>
             <p class="text-[9px] font-bold uppercase tracking-widest opacity-40">Upload your bank statement</p>
@@ -342,8 +342,8 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   </dialog>
 
   <!-- Category Modal -->
-  <dialog id="category-modal" class="p-6 md:p-12 md:max-w-md">
-      <div class="space-y-8">
+  <dialog id="category-modal" class="md:max-w-md">
+      <div class="p-6 md:p-12 space-y-8">
         <header class="text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Budget Categories</h3></header>
         <div class="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
             {categories?.map(cat => (
@@ -400,8 +400,8 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   </dialog>
 
   <!-- Transaction Modal (Handles both Add & Edit) -->
-  <dialog id="transaction-modal" class="p-6 md:p-12 md:max-w-sm">
-      <form action="/api/transactions" method="POST" class="space-y-8 w-full">
+  <dialog id="transaction-modal" class="md:max-w-sm">
+      <form action="/api/transactions" method="POST" class="p-6 md:p-12 space-y-8 w-full">
         <input type="hidden" name="id" id="form-tx-id" />
         <header class="text-center"><h3 id="form-tx-title" class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">New Transaction</h3></header>
         <div class="space-y-4 w-full">

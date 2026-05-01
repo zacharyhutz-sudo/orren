@@ -139,7 +139,7 @@ const recentActivity = (transactions || []).slice(0, 5);
             </div>
             <div class="space-y-1">
                 <span class="text-[8px] font-bold uppercase tracking-[0.3em] opacity-40">Left</span>
-                <p class="text-lg font-bold tracking-tighter ${remaining < 0 ? 'text-[#B18B53]' : ''}">${remaining < 0 ? '-' : ''}${Math.abs(remaining).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                <p class={["text-lg font-bold tracking-tighter", remaining < 0 ? "text-[#B18B53]" : ""].join(' ')}>{remaining < 0 ? '-' : ''}${Math.abs(remaining).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             </div>
         </div>
     </div>

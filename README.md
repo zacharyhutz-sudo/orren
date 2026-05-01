@@ -1,43 +1,65 @@
-# Astro Starter Kit: Minimal
+# Orren
 
-```sh
-npm create astro@latest -- --template minimal
-```
+Orren is a simple, private-first money command center. Track your budget, monitor your net worth, and plan your future with integrated money calculators.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Features
 
-## 🚀 Project Structure
+- **Dashboard:** At-a-glance view of your net worth, monthly income, and spending.
+- **Budgeting:** Manual-first transaction tracking with spending groups (Needs, Wants, Savings), recurring transactions, and rollover categories.
+- **Net Worth:** Track assets and liabilities over time with milestone-based updates.
+- **Money Calculators:** Integrated tools for retirement planning and debt payoff (Snowball/Avalanche) that sync with your real data.
+- **CSV Import:** Quickly add data from your bank statements with basic duplicate detection.
 
-Inside of your Astro project, you'll see the following folders and files:
+## Tech Stack
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+- **Framework:** Astro
+- **Styling:** Tailwind CSS
+- **Database/Auth:** Supabase
+- **Charts:** Chart.js
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Getting Started
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+### Prerequisites
 
-Any static assets, like images, can be placed in the `public/` directory.
+- Node.js (v18+)
+- A Supabase project
 
-## 🧞 Commands
+### Setup
 
-All commands are run from the root of the project, from a terminal:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/zacharyhutz-sudo/orren.git
+   cd orren
+   ```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-## 👀 Want to learn more?
+3. **Configure Environment Variables:**
+   Create a `.env` file in the root directory:
+   ```env
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+4. **Initialize Database:**
+   Run the SQL scripts in `supabase/migrations/` in your Supabase SQL Editor to set up the required tables and RLS policies.
+
+5. **Run local development server:**
+   ```bash
+   npm run dev
+   ```
+
+## Deployment
+
+Orren is designed to be deployed on platforms like **Netlify** or **Vercel**.
+
+1. Connect your GitHub repository to your hosting provider.
+2. Add your `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the provider's Environment Variables settings.
+3. Deploy!
+
+## License
+
+Personal project of Zachary Hutzell.

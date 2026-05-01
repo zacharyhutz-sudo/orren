@@ -91,13 +91,14 @@ function isActive(href: string) {
       dialog {
           width: 100vw;
           height: 100dvh;
-          max-width: none;
-          max-height: none;
-          margin: 0;
-          padding: 0;
-          border: none;
+          max-width: 100vw !important;
+          max-height: 100dvh !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          border: none !important;
           background: #f2efeb;
           overflow-y: auto;
+          box-sizing: border-box;
       }
 
       dialog::backdrop {
@@ -110,11 +111,12 @@ function isActive(href: string) {
           dialog {
               width: auto;
               height: auto;
-              max-width: 32rem;
-              margin: auto;
-              border: 1px solid rgba(26, 26, 26, 0.1);
+              max-width: 32rem !important;
+              max-height: 90dvh !important;
+              margin: auto !important;
+              border: 1px solid rgba(26, 26, 26, 0.1) !important;
               background: white;
-              border-radius: 0; /* Keep the sharp Orren look */
+              border-radius: 0;
           }
       }
 
