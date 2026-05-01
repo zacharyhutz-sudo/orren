@@ -441,12 +441,71 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   </dialog>
 </Layout>
 
+<script is:inline>
+    // 0. Global Helpers
+    function escapeHTML(str) {
+        if (!str) return '';
+        const p = document.createElement('p');
+        p.textContent = str;
+        return p.innerHTML;
+    }
+
+    // 1. Modal Management (Edit & Add) - Moved to top for reliability
+    window.openTxModal = function(data = null) {
+        const modal = document.getElementById('transaction-modal');
+        if (!modal) return;
+        
+        const form = modal.querySelector('form');
+        const deleteBtn = document.getElementById('btn-delete-active-tx');
+        const merchantInput = document.getElementById('tx-merchant');
+        
+        if (data) {
+            document.getElementById('form-tx-title').textContent = 'Edit Transaction';
+            document.getElementById('form-tx-id').value = data.id;
+            document.getElementById('tx-merchant').value = data.merchant;
+            document.getElementById('tx-amount').value = data.amount;
+            document.getElementById('tx-date').value = data.date;
+            document.getElementById('tx-category').value = data.category_id || '';
+            document.getElementById('tx-notes').value = data.notes || '';
+            const typeRadio = document.querySelector(`input[name="type"][value="${data.type}"]`);
+            if (typeRadio) typeRadio.checked = true;
+            
+            if (deleteBtn) {
+                deleteBtn.classList.remove('hidden');
+                deleteBtn.onclick = async () => {
+                    if (!window.orren.confirm('Delete this transaction?')) return;
+                    const res = await fetch(`/api/transactions?id=${data.id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        window.orren.toast('Transaction deleted');
+                        location.reload();
+                    }
+                };
+            }
+        } else {
+            document.getElementById('form-tx-title').textContent = 'New Transaction';
+            document.getElementById('form-tx-id').value = '';
+            if (form) form.reset();
+            const lastCat = localStorage.getItem('orren_last_cat');
+            const lastDate = localStorage.getItem('orren_last_date');
+            if (lastCat) document.getElementById('tx-category').value = lastCat;
+            if (lastDate && window.currentMonthStr && lastDate.startsWith(window.currentMonthStr)) {
+                document.getElementById('tx-date').value = lastDate;
+            }
+            if (deleteBtn) deleteBtn.classList.add('hidden');
+        }
+        modal.showModal();
+        if (merchantInput) setTimeout(() => merchantInput.focus(), 50);
+    }
+</script>
+
 <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-<script is:inline define:vars={{ classificationBreakdown }}>
-    // 1. Classification Pie Chart
+<script is:inline define:vars={{ classificationBreakdown, currentMonthStr }}>
+    window.currentMonthStr = currentMonthStr;
+
+    // 2. Classification Pie Chart
     const ctx = document.getElementById('classificationChart')?.getContext('2d');
-    if (ctx) {
+    if (ctx && window.Chart) {
         new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -466,7 +525,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         });
     }
 
-    // 1. Transaction Filtering
+    // 3. Transaction Filtering
     let filterActive = false;
     document.getElementById('btn-filter-uncategorized')?.addEventListener('click', (e) => {
         filterActive = !filterActive;
@@ -482,7 +541,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         e.target.classList.toggle('text-white');
     });
 
-    // 2. CSV Import Logic
+    // 4. CSV Import Logic
     const importModal = document.getElementById('import-modal');
     const dropzone = document.getElementById('import-dropzone');
     const fileInput = document.getElementById('csv-file');
@@ -491,14 +550,15 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
     let pendingTransactions = [];
 
     document.getElementById('btn-import-csv')?.addEventListener('click', () => importModal.showModal());
-    dropzone.onclick = () => fileInput.click();
+    if (dropzone) dropzone.onclick = () => fileInput.click();
 
-    fileInput.onchange = (e) => {
+    if (fileInput) fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (file) handleFile(file);
     };
 
     function handleFile(file) {
+        if (!window.Papa) return window.orren.toast('CSV parser not loaded', 'error');
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -533,15 +593,17 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
     }
 
     function renderPreview() {
+        if (!dropzone || !preview || !previewBody) return;
         dropzone.classList.add('hidden');
         preview.classList.remove('hidden');
         previewBody.innerHTML = '';
         pendingTransactions.slice(0, 50).forEach(t => {
             const tr = document.createElement('tr');
             tr.className = 'border-b border-[#1a1a1a]/5';
+            const merchantEscaped = typeof escapeHTML !== 'undefined' ? escapeHTML(t.merchant) : t.merchant;
             tr.innerHTML = `
                 <td class="p-3">${t.date}</td>
-                <td class="p-3 truncate max-w-[100px]">${t.merchant}</td>
+                <td class="p-3 truncate max-w-[100px]">${merchantEscaped}</td>
                 <td class="p-3">$${t.amount.toLocaleString()}</td>
                 <td class="p-3 opacity-40">${t.type}</td>
             `;
@@ -549,7 +611,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         });
     }
 
-    document.getElementById('btn-confirm-import').onclick = async () => {
+    document.getElementById('btn-confirm-import')?.addEventListener('click', async () => {
         const btn = document.getElementById('btn-confirm-import');
         btn.disabled = true;
         btn.textContent = 'Importing...';
@@ -563,11 +625,14 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         if (res.ok) {
             window.orren.toast('Transactions imported successfully');
             setTimeout(() => location.reload(), 1000);
+        } else {
+            window.orren.toast('Error importing transactions', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Confirm & Import';
         }
-        else window.orren.toast('Error importing transactions', 'error');
-    };
+    });
 
-    // 3. Bulk Actions
+    // 5. Bulk Actions
     const bulkContainer = document.getElementById('bulk-actions');
     const bulkCountEl = document.getElementById('bulk-count');
     const bulkChecks = document.querySelectorAll('.tx-check');
@@ -578,11 +643,11 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
             .filter(c => c.checked)
             .map(c => c.closest('.tx-row').dataset.id);
         
-        if (selectedIds.length > 0) {
+        if (selectedIds.length > 0 && bulkContainer && bulkCountEl) {
             bulkContainer.classList.remove('hidden');
             bulkContainer.classList.add('flex');
             bulkCountEl.textContent = `${selectedIds.length} Selected`;
-        } else {
+        } else if (bulkContainer) {
             bulkContainer.classList.add('hidden');
             bulkContainer.classList.remove('flex');
         }
@@ -590,12 +655,14 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
 
     bulkChecks.forEach(c => c.onchange = updateBulkUI);
 
-    document.getElementById('btn-bulk-cancel').onclick = () => {
+    const bulkCancel = document.getElementById('btn-bulk-cancel');
+    if (bulkCancel) bulkCancel.onclick = () => {
         bulkChecks.forEach(c => c.checked = false);
         updateBulkUI();
     };
 
-    document.getElementById('btn-bulk-apply').onclick = async () => {
+    const bulkApply = document.getElementById('btn-bulk-apply');
+    if (bulkApply) bulkApply.onclick = async () => {
         const catId = document.getElementById('bulk-category').value;
         if (!catId) return window.orren.toast('Select a category', 'error');
 
@@ -611,60 +678,15 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         }
     };
 
-    // 4. Modal Management (Edit & Add)
-    const txModal = document.getElementById('transaction-modal');
-    const deleteBtn = document.getElementById('btn-delete-active-tx');
-    const txForm = document.querySelector('#transaction-modal form');
-
-    function openTxModal(data = null) {
-        const title = document.getElementById('form-tx-title');
-        const idInput = document.getElementById('form-tx-id');
-        const merchantInput = document.getElementById('tx-merchant');
-        const amountInput = document.getElementById('tx-amount');
-        const dateInput = document.getElementById('tx-date');
-        const catInput = document.getElementById('tx-category');
-        const notesInput = document.getElementById('tx-notes');
-        
-        if (data) {
-            title.textContent = 'Edit Transaction';
-            idInput.value = data.id;
-            merchantInput.value = data.merchant;
-            amountInput.value = data.amount;
-            dateInput.value = data.date;
-            catInput.value = data.category_id || '';
-            notesInput.value = data.notes || '';
-            document.querySelector(`input[name="type"][value="${data.type}"]`).checked = true;
-            deleteBtn.classList.remove('hidden');
-            deleteBtn.onclick = async () => {
-                if (!window.orren.confirm('Delete this transaction?')) return;
-                const res = await fetch(`/api/transactions?id=${data.id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    window.orren.toast('Transaction deleted');
-                    location.reload();
-                }
-            };
-        } else {
-            title.textContent = 'New Transaction';
-            idInput.value = '';
-            txForm.reset();
-            // Restore last used values for convenience
-            const lastCat = localStorage.getItem('orren_last_cat');
-            const lastDate = localStorage.getItem('orren_last_date');
-            if (lastCat) catInput.value = lastCat;
-            if (lastDate && lastDate.startsWith(currentMonthStr)) dateInput.value = lastDate;
-            deleteBtn.classList.add('hidden');
-        }
-        txModal.showModal();
-        setTimeout(() => merchantInput.focus(), 50);
-    }
-
-    document.getElementById('btn-add-transaction')?.addEventListener('click', () => openTxModal());
-    document.getElementById('fab-add-transaction')?.addEventListener('click', () => openTxModal());
+    // 6. Listeners
+    document.getElementById('btn-add-transaction')?.addEventListener('click', () => window.openTxModal());
+    document.getElementById('fab-add-transaction')?.addEventListener('click', () => window.openTxModal());
     document.querySelectorAll('.btn-edit-tx').forEach(btn => {
-        btn.onclick = () => openTxModal(JSON.parse(btn.dataset.tx));
+        btn.onclick = () => window.openTxModal(JSON.parse(btn.dataset.tx));
     });
 
-    txForm.onsubmit = () => {
+    const txFormMain = document.querySelector('#transaction-modal form');
+    if (txFormMain) txFormMain.onsubmit = () => {
         const cat = document.getElementById('tx-category').value;
         const date = document.getElementById('tx-date').value;
         localStorage.setItem('orren_last_cat', cat);
