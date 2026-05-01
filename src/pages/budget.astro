@@ -271,7 +271,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                 <div class="py-12 border-2 border-dashed border-[#1a1a1a]/5 text-center space-y-4">
                     <p class="text-xs opacity-40 italic font-bold uppercase tracking-widest">No transactions this month</p>
                     <div class="flex justify-center gap-4">
-                        <button onclick="document.getElementById('transaction-modal').showModal()" class="text-[9px] font-bold uppercase tracking-widest bg-[#1a1a1a] text-white px-4 py-2 hover:bg-[#B18B53] transition-colors">Add Transaction</button>
+                        <button onclick="openTxModal()" class="text-[9px] font-bold uppercase tracking-widest bg-[#1a1a1a] text-white px-4 py-2 hover:bg-[#B18B53] transition-colors">Add Transaction</button>
                         <button onclick="document.getElementById('import-modal').showModal()" class="text-[9px] font-bold uppercase tracking-widest border border-[#1a1a1a]/10 px-4 py-2 hover:bg-[#f2efeb] transition-colors">Import CSV</button>
                     </div>
                 </div>
