@@ -163,8 +163,8 @@ const syncAccounts = (accounts || []).map(acc => {
   </div>
 
   <!-- Sync Mode Modal -->
-  <dialog id="sync-modal" class="bg-white border border-[#1a1a1a]/10 p-0 max-w-lg w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm overflow-hidden">
-      <div class="flex flex-col h-[80vh]">
+  <dialog id="sync-modal" class="p-0 md:max-w-lg">
+      <div class="flex flex-col h-full md:h-[80vh]">
           <header class="p-8 border-b border-[#1a1a1a]/5 bg-[#f2efeb]/50">
               <div class="flex justify-between items-start mb-6">
                 <h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Update Balances</h3>
@@ -190,7 +190,7 @@ const syncAccounts = (accounts || []).map(acc => {
   </dialog>
 
   <!-- Existing Modals -->
-  <dialog id="add-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+  <dialog id="add-modal" class="p-6 md:p-12 md:max-w-sm">
       <form action="/api/accounts" method="POST" class="space-y-8">
         <header class="space-y-2 text-center"><h3 id="add-modal-title" class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Add Asset</h3></header>
         <div class="space-y-4">
@@ -206,7 +206,7 @@ const syncAccounts = (accounts || []).map(acc => {
       </form>
     </dialog>
 
-    <dialog id="edit-modal" class="bg-white border border-[#1a1a1a]/10 p-12 max-w-sm w-full backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+    <dialog id="edit-modal" class="p-6 md:p-12 md:max-w-sm">
       <div class="space-y-8">
         <header class="space-y-2 text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Edit Item</h3></header>
         <form id="edit-item-form" class="space-y-4">
@@ -476,9 +476,6 @@ const syncAccounts = (accounts || []).map(acc => {
 </script>
 
 <style>
-  dialog::backdrop { background: rgba(26, 26, 26, 0.2); backdrop-filter: blur(4px); }
-  input[type=\"number\"]::-webkit-inner-spin-button { display: none; }
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  input[type="number"]::-webkit-inner-spin-button { display: none; }
   .milestone-btn.active { opacity: 1 !important; }
 </style>

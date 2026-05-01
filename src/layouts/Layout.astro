@@ -86,6 +86,42 @@ function isActive(href: string) {
     <!-- Toast / Notification Container -->
     <div id="toast-container" class="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm px-6 pointer-events-none"></div>
 
+    <style is:global>
+      /* Mobile-First Dialog Overrides */
+      dialog {
+          width: 100vw;
+          height: 100dvh;
+          max-width: none;
+          max-height: none;
+          margin: 0;
+          padding: 0;
+          border: none;
+          background: #f2efeb;
+          overflow-y: auto;
+      }
+
+      dialog::backdrop {
+          background: rgba(26, 26, 26, 0.4);
+          backdrop-filter: blur(8px);
+      }
+
+      /* Desktop Dialog Restoration */
+      @media (min-width: 768px) {
+          dialog {
+              width: auto;
+              height: auto;
+              max-width: 32rem;
+              margin: auto;
+              border: 1px solid rgba(26, 26, 26, 0.1);
+              background: white;
+              border-radius: 0; /* Keep the sharp Orren look */
+          }
+      }
+
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
     <script is:inline>
       window.orren = {
         toast: (message, type = 'info') => {
