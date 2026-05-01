@@ -42,11 +42,19 @@ const investmentAccounts = (accountsData || []).map(acc => {
         currentBalance: latestSnap ? Number(latestSnap.balance) : 0
     };
 });
+
+// Comparison logic helper
+const comparisons = [
+    { label: 'Retire Early (55)', age: 55 },
+    { label: 'Standard (65)', age: 65 },
+    { label: 'Late (70)', age: 70 }
+];
 ---
 
 <Layout title="My Retirement">
-  <script is:inline define:vars={{ investmentAccounts }}>
+  <script is:inline define:vars={{ investmentAccounts, comparisons }}>
     window.ORREN_ACCOUNTS = investmentAccounts;
+    window.ORREN_COMPARISONS = comparisons;
   </script>
 
   <div class="bg-[#1a1a1a] min-h-screen text-white">
@@ -110,6 +118,31 @@ const investmentAccounts = (accountsData || []).map(acc => {
             <!-- Right Results -->
             <div class="lg:col-span-2 space-y-12">
                 
+                <!-- Saved Scenarios -->
+                <div class="bg-white/5 p-8 border border-white/5 space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest text-[#B18B53]">Scenarios</h4>
+                        <div class="flex gap-2">
+                            <input type="text" id="scenario-name" placeholder="Name..." class="bg-transparent border border-white/10 p-2 text-[10px] focus:outline-none focus:border-[#B18B53] w-32" />
+                            <button id="btn-save-scenario" class="text-[8px] font-bold uppercase tracking-widest bg-[#B18B53] px-3 py-1 hover:bg-white hover:text-[#1a1a1a] transition-all">Save</button>
+                        </div>
+                    </div>
+                    <div id="scenario-list" class="flex flex-wrap gap-2">
+                        <!-- Loaded via JS -->
+                    </div>
+                </div>
+
+                <!-- Comparison Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {comparisons.map((c, i) => (
+                        <div class="bg-white/5 p-6 border border-white/5 space-y-2">
+                            <span class="text-[8px] font-bold uppercase tracking-widest opacity-40">{c.label}</span>
+                            <h3 id={`comp-val-${i}`} class="text-xl font-bold tracking-tighter text-[#B18B53]">$0</h3>
+                            <p class="text-[7px] font-bold uppercase tracking-widest opacity-20">Monthly Withdrawal</p>
+                        </div>
+                    ))}
+                </div>
+
                 <!-- Advanced Table (Positioned Above Heroes) -->
                 <div id="advanced-table-container" class="hidden space-y-6 bg-white/5 p-8 border border-[#B18B53]/20">
                     <h4 class="text-[10px] font-bold uppercase tracking-widest text-[#B18B53]">Advanced Account Breakdown</h4>
@@ -304,8 +337,84 @@ const investmentAccounts = (accountsData || []).map(acc => {
             document.getElementById('total-portfolio').textContent = `$${totalPortfolio.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
             document.getElementById('years-to-go').textContent = `${years} Years to go`;
 
+            // Comparison Math
+            comparisons.forEach((c, idx) => {
+                const cYears = c.age - currentAge;
+                if (cYears <= 0) {
+                    document.getElementById(`comp-val-${idx}`).textContent = "Reached";
+                    return;
+                }
+                const cMonths = cYears * 12;
+                let cTotal = 0;
+                let cBalances = activeAccounts.map(a => a.type === 'liability' ? -a.currentBalance : a.currentBalance);
+                
+                for (let m = 1; m <= cMonths; m++) {
+                    for (let i = 0; i < activeAccounts.length; i++) {
+                        const acc = activeAccounts[i];
+                        let r = isAdvanced ? (acc.rate / 100 / 12) : (acc.category === 'Investments' ? globalRate : 0);
+                        const weight = totalBalanceForWeight > 0 ? (Math.abs(acc.currentBalance) / totalBalanceForWeight) : (1 / activeAccounts.length);
+                        let contrib = isAdvanced ? acc.monthly : (globalMonthlyTotal * weight);
+                        cBalances[i] = (cBalances[i] + contrib) * (1 + r);
+                    }
+                }
+                cTotal = cBalances.reduce((a, b) => a + b, 0);
+                const cMonthly = (cTotal * swr) / 12;
+                document.getElementById(`comp-val-${idx}`).textContent = `$${Math.max(0, cMonthly).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            });
+
             updateChart(labels, data);
         }
+
+        // Scenario Logic
+        async function loadScenarios() {
+            const res = await fetch('/api/scenarios?type=retirement');
+            const data = await res.json();
+            const list = document.getElementById('scenario-list');
+            list.innerHTML = data.length === 0 ? '<p class="text-[8px] opacity-30 italic">No saved scenarios</p>' : '';
+            data.forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = 'text-[9px] font-bold uppercase tracking-widest border border-white/10 px-3 py-1.5 hover:border-[#B18B53] transition-all';
+                btn.textContent = s.name;
+                btn.onclick = () => {
+                    document.getElementById('current-age').value = s.data.currentAge;
+                    document.getElementById('retire-age').value = s.data.retireAge;
+                    document.getElementById('global-rate').value = s.data.rate;
+                    document.getElementById('global-monthly').value = s.data.monthly;
+                    calculate();
+                    window.orren.toast('Scenario loaded');
+                };
+                list.appendChild(btn);
+            });
+        }
+
+        document.getElementById('btn-save-scenario').onclick = async () => {
+            const name = document.getElementById('scenario-name').value;
+            if (!name) return window.orren.toast('Name your scenario', 'error');
+            
+            const payload = {
+                name,
+                type: 'retirement',
+                data: {
+                    currentAge: document.getElementById('current-age').value,
+                    retireAge: document.getElementById('retire-age').value,
+                    rate: document.getElementById('global-rate').value,
+                    monthly: document.getElementById('global-monthly').value
+                }
+            };
+
+            const res = await fetch('/api/scenarios', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                window.orren.toast('Scenario saved');
+                document.getElementById('scenario-name').value = '';
+                loadScenarios();
+            }
+        };
+
+        loadScenarios();
 
         function updateChart(labels, data) {
             if (chart) {

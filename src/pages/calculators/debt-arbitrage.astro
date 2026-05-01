@@ -2,7 +2,37 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 
+// Fetch accounts and their snapshots
+const { data: accounts, error: accountsError } = await supabase
+  .from('accounts')
+  .select(`
+    *,
+    account_snapshots (
+      balance,
+      snapshot_date
+    )
+  `)
+  .eq('user_id', authData.user.id);
+
+if (accountsError) console.error(accountsError);
+
+const liabilities = (accounts || [])
+    .filter(acc => acc.type === 'liability')
+    .map(acc => {
+        const latestSnap = acc.account_snapshots.sort((a: any, b: any) => new Date(b.snapshot_date).getTime() - new Date(a.snapshot_date).getTime())[0];
+        return {
+            name: acc.name,
+            balance: latestSnap ? Number(latestSnap.balance) : 0,
+            apr: 0, // Placeholder
+            min: 0  // Placeholder
+        };
+    });
+---
+
 <Layout title="Debt Payoff vs. Investing">
+  <script is:inline define:vars={{ liabilities }}>
+    window.ORREN_LIABILITIES = liabilities;
+  </script>
   <div class="px-6 py-12 max-w-4xl mx-auto space-y-12">
     <header class="space-y-4">
       <h2 class="text-5xl font-['Cormorant_Garamond'] italic tracking-tighter">Debt Payoff vs. Investing</h2>
@@ -62,7 +92,10 @@ import Layout from '../../layouts/Layout.astro';
         <section class="space-y-6">
             <div class="flex justify-between items-end">
                 <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Debts</h4>
-                <button id="btn-add-debt" class="text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100">+ Add Debt</button>
+                <div class="flex gap-2">
+                    <button id="btn-sync-debts" class="text-[9px] font-bold uppercase tracking-widest text-[#B18B53] hover:underline">Import from Net Worth</button>
+                    <button id="btn-add-debt" class="text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100">+ Add Debt</button>
+                </div>
             </div>
             <div id="debt-container" class="space-y-4">
                 <!-- Template for dynamic rows -->
@@ -118,6 +151,18 @@ import Layout from '../../layouts/Layout.astro';
                 <div id="res-warnings" class="space-y-2"></div>
             </div>
 
+            <!-- Scenario Management -->
+            <div class="bg-white border border-[#1a1a1a]/5 p-8 space-y-4">
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Saved Scenarios</h4>
+                <div id="scenario-list" class="space-y-2">
+                    <!-- Loaded via JS -->
+                </div>
+                <div class="pt-4 border-t border-[#1a1a1a]/5 flex gap-2">
+                    <input type="text" id="scenario-name" placeholder="Scenario name..." class="flex-1 bg-[#f2efeb] p-3 text-[10px] focus:outline-none" />
+                    <button id="btn-save-scenario" class="bg-[#1a1a1a] text-white px-4 text-[9px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save</button>
+                </div>
+            </div>
+
             <button id="btn-calculate" class="w-full bg-[#B18B53] text-white py-5 text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl">Calculate Plan</button>
         </div>
       </div>
@@ -159,12 +204,71 @@ import Layout from '../../layouts/Layout.astro';
 <script is:inline>
     const container = document.getElementById('debt-container');
     const btnAdd = document.getElementById('btn-add-debt');
+    const btnSync = document.getElementById('btn-sync-debts');
     const btnCalc = document.getElementById('btn-calculate');
 
     let debts = [
         { id: Date.now(), name: 'Credit Card', balance: 5000, apr: 24, min: 150 },
         { id: Date.now() + 1, name: 'Car Loan', balance: 12000, apr: 6.5, min: 350 }
     ];
+
+    btnSync.onclick = () => {
+        const synced = window.ORREN_LIABILITIES || [];
+        if (synced.length === 0) return window.orren.toast('No debts found in Net Worth', 'error');
+        debts = synced.map(d => ({ ...d, id: Date.now() + Math.random() }));
+        renderDebts();
+        window.orren.toast(`Imported ${synced.length} debts`);
+    };
+
+    // Scenario Logic
+    async function loadScenarios() {
+        const res = await fetch('/api/scenarios?type=debt-arbitrage');
+        const data = await res.json();
+        const list = document.getElementById('scenario-list');
+        list.innerHTML = data.length === 0 ? '<p class="text-[8px] opacity-30 italic">No saved scenarios</p>' : '';
+        data.forEach(s => {
+            const btn = document.createElement('button');
+            btn.className = 'w-full text-left p-3 border border-[#1a1a1a]/5 text-[9px] font-bold uppercase tracking-widest hover:border-[#B18B53]/40 flex justify-between group';
+            btn.innerHTML = `<span>${s.name}</span><span class="opacity-0 group-hover:opacity-40">Load</span>`;
+            btn.onclick = () => {
+                document.getElementById('input-strategy').value = s.data.strategy;
+                document.getElementById('input-extra').value = s.data.extra;
+                debts = s.data.debts;
+                renderDebts();
+                calculate();
+                window.orren.toast('Scenario loaded');
+            };
+            list.appendChild(btn);
+        });
+    }
+
+    document.getElementById('btn-save-scenario').onclick = async () => {
+        const name = document.getElementById('scenario-name').value;
+        if (!name) return window.orren.toast('Name your scenario', 'error');
+        
+        const payload = {
+            name,
+            type: 'debt-arbitrage',
+            data: {
+                strategy: document.getElementById('input-strategy').value,
+                extra: document.getElementById('input-extra').value,
+                debts: debts
+            }
+        };
+
+        const res = await fetch('/api/scenarios', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            window.orren.toast('Scenario saved');
+            document.getElementById('scenario-name').value = '';
+            loadScenarios();
+        }
+    };
+
+    loadScenarios();
 
     function renderDebts() {
         container.innerHTML = '';
