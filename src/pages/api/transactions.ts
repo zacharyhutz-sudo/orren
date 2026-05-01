@@ -19,6 +19,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const category_id = formData.get("category_id")?.toString() || null;
   const type = formData.get("type")?.toString() || "expense";
   const notes = formData.get("notes")?.toString();
+  const frequency = formData.get("frequency")?.toString();
 
   const data = {
     date,
@@ -38,10 +39,24 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       .eq("user_id", user.id);
     if (error) return new Response(error.message, { status: 500 });
   } else {
-    const { error } = await supabase
-      .from("transactions")
-      .insert(data);
-    if (error) return new Response(error.message, { status: 500 });
+    // If monthly, insert for next 12 months
+    if (frequency === 'monthly') {
+        const transactions = [];
+        const baseDate = new Date(date + 'T12:00:00');
+        for (let i = 0; i < 12; i++) {
+            const nextDate = new Date(baseDate);
+            nextDate.setMonth(baseDate.getMonth() + i);
+            transactions.push({
+                ...data,
+                date: nextDate.toISOString().split('T')[0]
+            });
+        }
+        const { error } = await supabase.from("transactions").insert(transactions);
+        if (error) return new Response(error.message, { status: 500 });
+    } else {
+        const { error } = await supabase.from("transactions").insert(data);
+        if (error) return new Response(error.message, { status: 500 });
+    }
   }
 
   return redirect("/budget");

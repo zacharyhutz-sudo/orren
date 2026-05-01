@@ -39,6 +39,19 @@ const { data: categories } = await supabase
   .eq('user_id', user.id)
   .order('name');
 
+// 0. Handle Rollovers (Fetch prior month spending)
+const lastMonthObj = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+const lastMonthStr = lastMonthObj.toISOString().slice(0, 7);
+const lmFirst = new Date(lastMonthObj.getFullYear(), lastMonthObj.getMonth(), 1).toISOString().split('T')[0];
+const lmLast = new Date(lastMonthObj.getFullYear(), lastMonthObj.getMonth() + 1, 0).toISOString().split('T')[0];
+
+const { data: lmTransactions } = await supabase
+  .from('transactions')
+  .select('amount, category_id, type')
+  .eq('user_id', user.id)
+  .gte('date', lmFirst)
+  .lte('date', lmLast);
+
 // Seed starter categories if empty
 if (categories && categories.length === 0) {
     const starters = [
@@ -86,7 +99,16 @@ const catSpend = (categories || []).map(cat => {
     const actual = (transactions || [])
         .filter(t => t.category_id === cat.id && t.type === 'expense')
         .reduce((sum, t) => sum + Number(t.amount), 0);
-    return { ...cat, actual };
+    
+    let rolloverAmount = 0;
+    if (cat.rollover) {
+        const lmSpent = (lmTransactions || [])
+            .filter(t => t.category_id === cat.id && t.type === 'expense')
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+        rolloverAmount = Math.max(0, Number(cat.monthly_limit) - lmSpent);
+    }
+
+    return { ...cat, actual, rolloverAmount, effectiveLimit: Number(cat.monthly_limit) + rolloverAmount };
 });
 
 // Classification breakdown
@@ -208,14 +230,19 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
             {catSpend.map(cat => (
                 <div class="bg-white border border-[#1a1a1a]/5 p-5 space-y-3 group cursor-pointer hover:border-[#B18B53]/20 transition-all">
                     <div class="flex justify-between items-start">
-                        <span class="font-['Cormorant_Garamond'] italic text-xl">{cat.name}</span>
+                        <div class="space-y-0.5">
+                            <span class="font-['Cormorant_Garamond'] italic text-xl">{cat.name}</span>
+                            {cat.rolloverAmount > 0 && (
+                                <span class="block text-[7px] font-bold uppercase tracking-widest text-[#7ea493]">+$${cat.rolloverAmount.toLocaleString()} Rollover</span>
+                            )}
+                        </div>
                         <div class="text-right">
                             <span class="text-[10px] font-bold tracking-tighter">${cat.actual.toLocaleString()}</span>
-                            <span class="text-[10px] font-bold tracking-tighter opacity-20 block">of ${Number(cat.monthly_limit).toLocaleString()}</span>
+                            <span class="text-[10px] font-bold tracking-tighter opacity-20 block">of ${cat.effectiveLimit.toLocaleString()}</span>
                         </div>
                     </div>
                     <div class="h-0.5 w-full bg-[#1a1a1a]/5">
-                        <div class={`h-full ${cat.actual > cat.monthly_limit && cat.monthly_limit > 0 ? 'bg-red-400' : 'bg-[#B18B53]'}`} style={`width: ${cat.monthly_limit > 0 ? Math.min(100, (cat.actual / cat.monthly_limit) * 100) : 0}%`}></div>
+                        <div class={`h-full ${cat.actual > cat.effectiveLimit && cat.effectiveLimit > 0 ? 'bg-red-400' : 'bg-[#B18B53]'}`} style={`width: ${cat.effectiveLimit > 0 ? Math.min(100, (cat.actual / cat.effectiveLimit) * 100) : 0}%`}></div>
                     </div>
                 </div>
             ))}
@@ -226,7 +253,18 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
     <section class="space-y-6">
         <div class="flex justify-between items-center">
             <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Recent Activity</h4>
-            <button id="btn-filter-uncategorized" class="text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 px-3 py-1 border border-[#1a1a1a]/5">Review Uncategorized</button>
+            <div class="flex gap-2">
+                <div id="bulk-actions" class="hidden flex items-center gap-2 bg-[#1a1a1a] px-3 py-1 animate-in fade-in zoom-in duration-200">
+                    <span id="bulk-count" class="text-[8px] font-bold text-white uppercase tracking-widest">0 Selected</span>
+                    <select id="bulk-category" class="bg-white/10 text-white text-[8px] font-bold uppercase p-1 border-none focus:outline-none">
+                        <option value="">Move to...</option>
+                        {categories?.map(c => <option value={c.id}>{c.name}</option>)}
+                    </select>
+                    <button id="btn-bulk-apply" class="text-[8px] font-bold text-[#B18B53] uppercase hover:underline">Apply</button>
+                    <button id="btn-bulk-cancel" class="text-[8px] font-bold text-white/40 uppercase hover:text-white">X</button>
+                </div>
+                <button id="btn-filter-uncategorized" class="text-[8px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 px-3 py-1 border border-[#1a1a1a]/5">Review Uncategorized</button>
+            </div>
         </div>
         <div id="tx-list" class="space-y-2">
             {(transactions || []).length === 0 && (
@@ -239,8 +277,9 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                 </div>
             )}
             {transactions?.map(t => (
-                <div class={`tx-row flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative ${!t.category_id ? 'needs-cat' : ''}`}>
+                <div class={`tx-row flex justify-between items-center p-3 bg-white border border-[#1a1a1a]/5 text-sm group hover:border-[#B18B53]/20 transition-all relative ${!t.category_id ? 'needs-cat' : ''}`} data-id={t.id}>
                     <div class="flex flex-1 items-center gap-3 min-w-0">
+                        <input type="checkbox" class="tx-check w-3 h-3 accent-[#B18B53] opacity-0 group-hover:opacity-100 has-[:checked]:opacity-100 transition-opacity" />
                         <div class="w-1.5 h-1.5 rounded-full bg-[#B18B53] shrink-0 opacity-0 group-[.needs-cat]:opacity-100"></div>
                         <p class="font-bold tracking-tight truncate flex-1">{t.merchant} <span class="text-[9px] font-normal opacity-30 uppercase ml-2">{t.budget_categories?.name || 'Uncategorized'} • {new Date(t.date + 'T12:00:00').toLocaleDateString()}</span></p>
                     </div>
@@ -303,29 +342,37 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   </dialog>
 
   <!-- Category Modal -->
-  <dialog id="category-modal" class="bg-white border border-[#1a1a1a]/10 p-6 md:p-10 w-[90vw] md:max-w-sm backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
+  <dialog id="category-modal" class="bg-white border border-[#1a1a1a]/10 p-6 md:p-10 w-[90vw] md:max-w-md backdrop:bg-[#1a1a1a]/20 backdrop:backdrop-blur-sm">
       <div class="space-y-8">
-        <header class="text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Budget Limits</h3></header>
+        <header class="text-center"><h3 class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">Budget Categories</h3></header>
         <div class="space-y-3 max-h-60 overflow-y-auto no-scrollbar">
             {categories?.map(cat => (
-                <div class="flex gap-2 items-center pb-2 border-b border-[#1a1a1a]/5 group">
-                    <form action="/api/budget-categories" method="POST" class="flex flex-wrap gap-2 items-center flex-1">
-                        <input type="hidden" name="id" value={cat.id} />
-                        <input type="text" name="name" value={cat.name} class="text-[10px] font-bold uppercase tracking-widest bg-transparent focus:outline-none flex-1 min-w-[100px]" />
-                        <select name="classification" class="bg-[#f2efeb] text-[8px] font-bold uppercase p-1 focus:outline-none">
-                            <option value="Needs" selected={cat.classification === 'Needs'}>Needs</option>
-                            <option value="Wants" selected={cat.classification === 'Wants'}>Wants</option>
-                            <option value="Savings & Investments" selected={cat.classification === 'Savings & Investments'}>Savings</option>
-                        </select>
-                        <div class="flex items-center gap-1 bg-[#f2efeb] px-2 py-1">
-                            <span class="text-[9px] opacity-30">$</span>
-                            <input type="number" name="limit" value={cat.monthly_limit} class="w-16 bg-transparent text-[10px] font-bold focus:outline-none" />
+                <div class="flex flex-col gap-2 pb-4 border-b border-[#1a1a1a]/5 group">
+                    <form action="/api/budget-categories" method="POST" class="space-y-2">
+                        <div class="flex gap-2 items-center">
+                            <input type="hidden" name="id" value={cat.id} />
+                            <input type="text" name="name" value={cat.name} class="text-[10px] font-bold uppercase tracking-widest bg-transparent focus:outline-none flex-1 min-w-[100px]" />
+                            <button type="submit" class="text-[9px] font-bold text-[#B18B53] hover:underline">Save</button>
+                            <button type="button" class="btn-delete-cat opacity-40 hover:opacity-100 text-red-500" data-id={cat.id}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
                         </div>
-                        <button type="submit" class="text-[9px] font-bold text-[#B18B53] hover:underline">Save</button>
+                        <div class="flex gap-2 items-center">
+                            <select name="classification" class="flex-1 bg-[#f2efeb] text-[8px] font-bold uppercase p-2 focus:outline-none">
+                                <option value="Needs" selected={cat.classification === 'Needs'}>Needs</option>
+                                <option value="Wants" selected={cat.classification === 'Wants'}>Wants</option>
+                                <option value="Savings & Investments" selected={cat.classification === 'Savings & Investments'}>Savings</option>
+                            </select>
+                            <label class="flex items-center gap-2 bg-[#f2efeb] px-2 py-1 cursor-pointer">
+                                <input type="checkbox" name="rollover" value="true" checked={cat.rollover} class="w-3 h-3 accent-[#B18B53]" />
+                                <span class="text-[8px] font-bold uppercase opacity-40">Rollover</span>
+                            </label>
+                            <div class="flex items-center gap-1 bg-[#f2efeb] px-2 py-1">
+                                <span class="text-[9px] opacity-30">$</span>
+                                <input type="number" name="limit" value={cat.monthly_limit} class="w-16 bg-transparent text-[10px] font-bold focus:outline-none" />
+                            </div>
+                        </div>
                     </form>
-                    <button class="btn-delete-cat opacity-0 group-hover:opacity-40 hover:opacity-100 text-red-500" data-id={cat.id}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                    </button>
                 </div>
             ))}
         </div>
@@ -339,6 +386,10 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                         <option value="Wants">Wants</option>
                         <option value="Savings & Investments">Savings</option>
                     </select>
+                    <label class="flex items-center gap-2 bg-[#f2efeb] px-3 py-1 cursor-pointer">
+                        <input type="checkbox" name="rollover" value="true" class="w-3 h-3 accent-[#B18B53]" />
+                        <span class="text-[8px] font-bold uppercase opacity-40">Rollover</span>
+                    </label>
                     <input type="number" name="limit" placeholder="Limit" class="w-24 bg-[#f2efeb] p-3 text-[16px] focus:outline-none" />
                 </div>
             </div>
@@ -372,6 +423,13 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
                 <option value="">No Category</option>
                 {categories?.map(cat => <option value={cat.id}>{cat.name}</option>)}
             </select>
+            <div class="space-y-2">
+                <label class="text-[8px] font-bold uppercase opacity-40 tracking-widest">Frequency</label>
+                <select name="frequency" id="tx-frequency" class="w-full bg-[#f2efeb] p-3 text-[12px] font-bold uppercase focus:outline-none appearance-none">
+                    <option value="one-time">One-time</option>
+                    <option value="monthly">Monthly Recurring</option>
+                </select>
+            </div>
             <textarea name="notes" id="tx-notes" placeholder="Optional notes" class="w-full block bg-[#f2efeb] p-4 text-[16px] focus:outline-none h-20 resize-none box-border border-none rounded-none"></textarea>
         </div>
         <div class="flex flex-col gap-4">
@@ -509,7 +567,51 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         else window.orren.toast('Error importing transactions', 'error');
     };
 
-    // 3. Modal Management (Edit & Add)
+    // 3. Bulk Actions
+    const bulkContainer = document.getElementById('bulk-actions');
+    const bulkCountEl = document.getElementById('bulk-count');
+    const bulkChecks = document.querySelectorAll('.tx-check');
+    let selectedIds = [];
+
+    function updateBulkUI() {
+        selectedIds = Array.from(bulkChecks)
+            .filter(c => c.checked)
+            .map(c => c.closest('.tx-row').dataset.id);
+        
+        if (selectedIds.length > 0) {
+            bulkContainer.classList.remove('hidden');
+            bulkContainer.classList.add('flex');
+            bulkCountEl.textContent = `${selectedIds.length} Selected`;
+        } else {
+            bulkContainer.classList.add('hidden');
+            bulkContainer.classList.remove('flex');
+        }
+    }
+
+    bulkChecks.forEach(c => c.onchange = updateBulkUI);
+
+    document.getElementById('btn-bulk-cancel').onclick = () => {
+        bulkChecks.forEach(c => c.checked = false);
+        updateBulkUI();
+    };
+
+    document.getElementById('btn-bulk-apply').onclick = async () => {
+        const catId = document.getElementById('bulk-category').value;
+        if (!catId) return window.orren.toast('Select a category', 'error');
+
+        const res = await fetch('/api/bulk-categorize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: selectedIds, category_id: catId })
+        });
+
+        if (res.ok) {
+            window.orren.toast(`Updated ${selectedIds.length} transactions`);
+            location.reload();
+        }
+    };
+
+    // 4. Modal Management (Edit & Add)
     const txModal = document.getElementById('transaction-modal');
     const deleteBtn = document.getElementById('btn-delete-active-tx');
     const txForm = document.querySelector('#transaction-modal form');
