@@ -27,7 +27,7 @@ function isActive(href: string) {
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title} | Orren</title>
@@ -35,7 +35,7 @@ function isActive(href: string) {
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
 	</head>
-  <body class="noise min-h-screen bg-[#f2efeb] text-[#1a1a1a] selection:bg-[#B18B53]/20 font-['Plus_Jakarta_Sans'] antialiased overflow-x-hidden pb-20 md:pb-0">
+  <body class="noise min-h-dvh bg-[#f2efeb] text-[#1a1a1a] selection:bg-[#B18B53]/20 font-['Plus_Jakarta_Sans'] antialiased overflow-x-hidden pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
     <!-- Header for Mobile & Desktop -->
     {showNav && (
       <header class="flex p-6 md:p-8 justify-between items-center border-b border-[#1a1a1a]/5 bg-white/40 backdrop-blur-sm sticky top-0 z-[60]">
@@ -69,7 +69,7 @@ function isActive(href: string) {
     
     <!-- iOS Style Bottom Navigation (Mobile Only) -->
     {showNav && (
-      <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-[#1a1a1a]/5 px-6 py-3 flex justify-around items-center z-50 md:hidden">
+      <nav class="fixed inset-x-0 bottom-0 bg-white/80 backdrop-blur-xl border-t border-[#1a1a1a]/5 px-6 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 flex justify-around items-center z-[90] md:hidden">
         {navItems.map(item => (
           <a href={item.href} class={`flex flex-col items-center gap-1 transition-all ${isActive(item.href) ? 'text-[#B18B53]' : 'opacity-40 hover:opacity-100'}`}>
             <div class="p-1">

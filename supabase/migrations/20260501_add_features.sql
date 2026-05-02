@@ -4,7 +4,7 @@ ALTER TABLE budget_categories ADD COLUMN IF NOT EXISTS rollover BOOLEAN DEFAULT 
 
 -- Create calculator_scenarios table
 CREATE TABLE IF NOT EXISTS calculator_scenarios (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   type TEXT NOT NULL, -- 'retirement' or 'debt-arbitrage'

@@ -20,6 +20,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const type = formData.get("type")?.toString() || "expense";
   const notes = formData.get("notes")?.toString();
   const frequency = formData.get("frequency")?.toString();
+  const client_tx_id = formData.get("client_tx_id")?.toString();
 
   const data = {
     date,
@@ -28,7 +29,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     category_id: category_id === "" ? null : category_id,
     type,
     notes,
-    user_id: user.id
+    user_id: user.id,
+    client_tx_id
   };
 
   if (id) {
@@ -48,7 +50,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
             nextDate.setMonth(baseDate.getMonth() + i);
             transactions.push({
                 ...data,
-                date: nextDate.toISOString().split('T')[0]
+                date: nextDate.toISOString().split('T')[0],
+                client_tx_id: client_tx_id ? `${client_tx_id}-${i}` : null
             });
         }
         const { error } = await supabase.from("transactions").insert(transactions);

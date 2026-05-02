@@ -403,6 +403,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
   <dialog id="transaction-modal" class="md:max-w-sm">
       <form action="/api/transactions" method="POST" class="p-6 md:p-12 space-y-8 w-full">
         <input type="hidden" name="id" id="form-tx-id" />
+        <input type="hidden" name="client_tx_id" id="form-client-tx-id" />
         <header class="text-center"><h3 id="form-tx-title" class="text-3xl font-['Cormorant_Garamond'] italic tracking-tighter">New Transaction</h3></header>
         <div class="space-y-4 w-full">
             <div class="flex bg-[#f2efeb] p-1 w-full">
@@ -433,7 +434,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
             <textarea name="notes" id="tx-notes" placeholder="Optional notes" class="w-full block bg-[#f2efeb] p-4 text-[16px] focus:outline-none h-20 resize-none box-border border-none rounded-none"></textarea>
         </div>
         <div class="flex flex-col gap-4">
-            <button type="submit" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors">Save Transaction</button>
+            <button type="submit" id="btn-save-tx" class="bg-[#1a1a1a] text-white py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-[#B18B53] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Save Transaction</button>
             <button type="button" id="btn-delete-active-tx" class="hidden text-[10px] font-bold uppercase tracking-widest text-red-500 hover:underline">Delete Transaction</button>
             <button type="button" onclick="document.getElementById('transaction-modal').close()" class="text-[10px] font-bold uppercase tracking-widest opacity-40">Cancel</button>
         </div>
@@ -458,10 +459,18 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         const form = modal.querySelector('form');
         const deleteBtn = document.getElementById('btn-delete-active-tx');
         const merchantInput = document.getElementById('tx-merchant');
+        const clientTxIdInput = document.getElementById('form-client-tx-id');
+        const saveBtn = document.getElementById('btn-save-tx');
+
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Transaction';
+        }
         
         if (data) {
             document.getElementById('form-tx-title').textContent = 'Edit Transaction';
             document.getElementById('form-tx-id').value = data.id;
+            if (clientTxIdInput) clientTxIdInput.value = data.client_tx_id || '';
             document.getElementById('tx-merchant').value = data.merchant;
             document.getElementById('tx-amount').value = data.amount;
             document.getElementById('tx-date').value = data.date;
@@ -484,6 +493,7 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
         } else {
             document.getElementById('form-tx-title').textContent = 'New Transaction';
             document.getElementById('form-tx-id').value = '';
+            if (clientTxIdInput) clientTxIdInput.value = crypto.randomUUID();
             if (form) form.reset();
             const lastCat = localStorage.getItem('orren_last_cat');
             const lastDate = localStorage.getItem('orren_last_date');
@@ -686,7 +696,13 @@ const dailyLeft = remaining > 0 ? (remaining / daysRemaining) : 0;
     });
 
     const txFormMain = document.querySelector('#transaction-modal form');
+    const saveTxBtn = document.getElementById('btn-save-tx');
+
     if (txFormMain) txFormMain.onsubmit = () => {
+        if (saveTxBtn) {
+            saveTxBtn.disabled = true;
+            saveTxBtn.textContent = 'Saving...';
+        }
         const cat = document.getElementById('tx-category').value;
         const date = document.getElementById('tx-date').value;
         localStorage.setItem('orren_last_cat', cat);

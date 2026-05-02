@@ -23,8 +23,11 @@ CREATE TABLE IF NOT EXISTS transactions (
   date DATE NOT NULL,
   type TEXT DEFAULT 'expense', -- 'income' or 'expense'
   notes TEXT,
+  client_tx_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_user_client_tx_id_idx ON transactions(user_id, client_tx_id);
 
 -- Create accounts table
 CREATE TABLE IF NOT EXISTS accounts (
